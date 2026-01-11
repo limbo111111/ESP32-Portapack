@@ -45,12 +45,12 @@ void PinConfig::loadFromNvs() {
 
 void PinConfig::debugPrint() {
     ESP_LOGI("PinConfig", "Current Pin Configuration:");
-    ESP_LOGI("PinConfig", "LED RGB Pin: %d", ledRgbPin);
-    ESP_LOGI("PinConfig", "GPS RX Pin: %d", gpsRxPin);
-    ESP_LOGI("PinConfig", "I2C SDA Pin: %d", i2cSdaPin);
-    ESP_LOGI("PinConfig", "I2C SCL Pin: %d", i2cSclPin);
-    ESP_LOGI("PinConfig", "IR RX Pin: %d", irRxPin);
-    ESP_LOGI("PinConfig", "IR TX Pin: %d", irTxPin);
-    ESP_LOGI("PinConfig", "I2C SDA Slave Pin: %d", i2cSdaSlavePin);
-    ESP_LOGI("PinConfig", "I2C SCL Slave Pin: %d", i2cSclSlavePin);
+    ESP_LOGI("PinConfig", "LED RGB Pin: %ld", ledRgbPin);
+    ESP_LOGI("PinConfig", "GPS RX Pin: %ld", gpsRxPin);
+    ESP_LOGI("PinConfig", "I2C SDA Pin: %ld", i2cSdaPin);
+    ESP_LOGI("PinConfig", "I2C SCL Pin: %ld", i2cSclPin);
+    ESP_LOGI("PinConfig", "IR RX Pin: %ld", irRxPin);
+    ESP_LOGI("PinConfig", "IR TX Pin: %ld", irTxPin);
+    ESP_LOGI("PinConfig", "I2C SDA Slave Pin: %ld", i2cSdaSlavePin);
+    ESP_LOGI("PinConfig", "I2C SCL Slave Pin: %ld", i2cSclSlavePin);
 }

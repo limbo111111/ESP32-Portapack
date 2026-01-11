@@ -493,8 +493,8 @@ nmea_parser_handle_t nmea_parser_init(const nmea_parser_config_t* config) {
 
     esp_gps->all_statements |= (1 << STATEMENT_GGA);
     esp_gps->all_statements |= (1 << STATEMENT_RMC);
-    esp_gps->all_statements |= (1 << STATEMENT_GLL);
-    esp_gps->all_statements |= (1 << STATEMENT_VTG);
+    // esp_gps->all_statements |= (1 << STATEMENT_GLL);
+    // esp_gps->all_statements |= (1 << STATEMENT_VTG);
 
     /* Set attributes */
     esp_gps->uart_port = config->uart.uart_port;
