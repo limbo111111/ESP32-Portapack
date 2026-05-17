@@ -11,6 +11,7 @@ enum class AppList {
     WIFISPAM,
     WIFILIST,
     WIFIPROBESNIFFER,
+    WIFICSI,
     MAX
 };
 

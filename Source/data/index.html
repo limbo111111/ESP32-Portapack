@@ -354,6 +354,7 @@
             </div>
             <div id="espAppStartList" style="display: none;">
                 <button onclick="sendMessage('#$##$$$01\r\n')">Wifi SSID spam</button>
+                <button onclick="sendMessage('#$##$$$04\r\n')">Wifi CSI motion</button>
                 <!-- <button onclick="sendMessage('#$##$$$02\r\n')">Wifi list</button>
                 <button onclick="sendMessage('#$##$$$03\r\n')">Wifi probe sniffer</button> -->
             </div>
@@ -363,6 +364,11 @@
                 <button onclick="sendMessage('#$$#$$$11\r\n')">Random mode</button>
                 <button onclick="sendMessage('#$$#$$$12\r\n')">Rick Roll mode</button>
                 <button onclick="sendMessage('#$$#$$$13\r\n')">Emoji spam mode</button>
+            </div>
+            <div id="espAppDT4" class="espAppCnt" style="display: none;">
+                <h3>Wifi CSI Motion</h3>
+                <button onclick="sendMessage('#$$#$$$40\r\n')">Standby mode</button>
+                <button onclick="sendMessage('#$$#$$$41\r\n')">Active mode</button>
             </div>
         </section>
 
@@ -427,6 +433,7 @@
             document.getElementById("btnEspAppStop").style.display = (app == 0) ? "none" : "inline-block";
             document.getElementById("espAppStartList").style.display = (app == 0) ? "block" : "none";
             document.getElementById("espAppDT1").style.display = (app == 1) ? "block" : "none";
+            document.getElementById("espAppDT4").style.display = (app == 4) ? "block" : "none";
         }
 
 
