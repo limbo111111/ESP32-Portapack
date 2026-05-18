@@ -56,7 +56,7 @@ void TIR::recvIRTask(void* param) {
             .signal_range_min_ns = 1250,
             .signal_range_max_ns = 12000000,
             .flags = {
-                0
+                .en_partial_rx = 0
             }
         };
 
@@ -67,9 +67,9 @@ void TIR::recvIRTask(void* param) {
             .mem_block_symbols = 64,
             .intr_priority = 0,
             .flags = {
+                .invert_in = 0,
                 .with_dma = 0,
-                .io_loop_back = 0,
-                .io_od_mode = 0
+                .io_loop_back = 0
             }
         };
 
