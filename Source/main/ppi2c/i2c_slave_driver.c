@@ -29,6 +29,7 @@
    welcome!
  */
 #include <sys/param.h>
+#include "esp_idf_version.h"
 #include "i2c_slave_driver.h"
 #include "esp_attr.h"
 #include "esp_intr_types.h"

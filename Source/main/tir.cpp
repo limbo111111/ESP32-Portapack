@@ -67,7 +67,9 @@ void TIR::recvIRTask(void* param) {
             .mem_block_symbols = 64,
             .intr_priority = 0,
             .flags = {
-                0
+                .with_dma = 0,
+                .io_loop_back = 0,
+                .io_od_mode = 0
             }
         };
 
