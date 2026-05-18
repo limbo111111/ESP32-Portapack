@@ -55,6 +55,9 @@ void TIR::recvIRTask(void* param) {
         rmt_receive_config_t rx_config = {
             .signal_range_min_ns = 1250,
             .signal_range_max_ns = 12000000,
+            .flags = {
+                0
+            }
         };
 
         rmt_rx_channel_config_t rx_ch_conf = {
@@ -63,6 +66,9 @@ void TIR::recvIRTask(void* param) {
             .resolution_hz = 1000000,
             .mem_block_symbols = 64,
             .intr_priority = 0,
+            .flags = {
+                0
+            }
         };
 
         rmt_new_rx_channel(&rx_ch_conf, &rx_channel);
