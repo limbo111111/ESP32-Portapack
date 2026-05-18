@@ -1,0 +1,35 @@
+name: Build ESP32PP
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Build with ESP-IDF
+      uses: espressif/esp-idf-ci-action@v1
+      with:
+        esp_idf_version: v5.2.1
+        target: esp32s3
+        path: 'Source'
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: esp32pp-firmware
+        path: |
+          Source/build/ESP32PP.bin
+          Source/build/bootloader/bootloader.bin
+          Source/build/partition_table/partition-table.bin
+          Source/build/ota_data_initial.bin
