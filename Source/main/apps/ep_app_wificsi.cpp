@@ -1,6 +1,7 @@
 #include "ep_app_wificsi.hpp"
 #include "pp_commands.hpp"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include <math.h>
 #include <string.h>
 
@@ -31,6 +32,7 @@ void EPAppWifiCsi::enable_csi() {
         .channel_filter_en = true,
         .manu_scale = false,
         .shift = 0,
+        .dump_ack_en = false,
     };
     esp_wifi_set_csi_config(&csi_config);
     esp_wifi_set_csi_rx_cb(&EPAppWifiCsi::csi_cb, this);
