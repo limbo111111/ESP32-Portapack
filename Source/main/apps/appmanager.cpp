@@ -1,6 +1,7 @@
 #include "appmanager.hpp"
 
 #include "ep_app_wifispam.hpp"
+#include "ep_app_wificsi.hpp"
 
 void SetDisplayDirtyMain();
 EPApp* AppManager::currentApp = nullptr;
@@ -17,6 +18,10 @@ void AppManager::startApp(AppList app) {
             currentAppId = (uint16_t)app;
             break;
         case AppList::WIFIPROBESNIFFER:
+            currentAppId = (uint16_t)app;
+            break;
+        case AppList::WIFICSI:
+            currentApp = new EPAppWifiCsi();
             currentAppId = (uint16_t)app;
             break;
         case AppList::NONE:
