@@ -534,9 +534,6 @@ void app_main(void) {
         .range_min = -10,
         .range_max = 80,
         .clk_src = TEMPERATURE_SENSOR_CLK_SRC_DEFAULT,
-        .flags = {
-            .allow_pd = 0,
-        },
     };
     ESP_ERROR_CHECK(temperature_sensor_install(&temp_sensor_config, &temp_sensor));
     ESP_LOGI(TAG, "Enable temperature sensor");
