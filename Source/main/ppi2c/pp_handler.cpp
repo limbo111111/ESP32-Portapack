@@ -147,6 +147,15 @@ void PPHandler::on_command_ISR(uint16_t command, std::vector<uint8_t> additional
             AppManager::handlePPAppmgrCommands(additional_data);
             break;
 
+        case (uint16_t)PPCMD_APPMGR_APPCMD:
+            if (AppManager::getCurrentApp()) {
+                AppManager::handlePPData(command, additional_data);
+            } else {
+                // If no app is running, start Appmgr
+                AppManager::handlePPAppmgrCommands(additional_data);
+            }
+            break;
+
         default:
             for (auto element : custom_command_list) {
                 if (element.command == (uint16_t)command) {
@@ -315,6 +324,12 @@ std::vector<uint8_t> PPHandler::on_send_ISR() {
         case (uint16_t)PPCMD_APPMGR_APPMGR: {
             std::vector<uint8_t> data;
             AppManager::handlePPReqAppmgrCommands(data);
+            return data;
+        }
+
+        case (uint16_t)PPCMD_APPMGR_APPCMD: {
+            std::vector<uint8_t> data;
+            AppManager::handlePPReqData(command_state, data);
             return data;
         }
 
