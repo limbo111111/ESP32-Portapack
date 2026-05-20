@@ -29,9 +29,10 @@ void EPAppWifiCsi::enable_csi() {
         .htltf_en = true,
         .stbc_htltf2_en = true,
         .ltf_merge_en = true,
-        .channel_filter_en = true,
+        .channel_filter_en = false,
         .manu_scale = false,
         .shift = 0,
+        .mac_filter_en = false,
         .dump_ack_en = false,
     };
     esp_wifi_set_csi_config(&csi_config);
@@ -83,7 +84,7 @@ void EPAppWifiCsi::process_csi_data(wifi_csi_info_t *data) {
             float diff = fabs(avg_amp - prev_amplitude);
 
             // Threshold for motion detection. This might need tuning based on environment.
-            if (diff > 5.0f && prev_amplitude > 0.1f) {
+            if (diff > 2.0f && prev_amplitude > 0.1f) {
                 motion_detected = true;
                 last_motion_time = esp_timer_get_time() / 1000;
                 SetDisplayDirty();
