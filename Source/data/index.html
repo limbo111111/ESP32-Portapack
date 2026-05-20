@@ -12,38 +12,65 @@
         }
 
         body {
-            font-family: 'Roboto', sans-serif;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: #121212;
             color: #e0e0e0;
-            padding: 10px;
+            padding: 20px;
             line-height: 1.6;
         }
 
         pre {
-            background-color: #1e1e1e;
+            background-color: #2e2e2e;
             padding: 15px;
-            border-radius: 5px;
+            border-radius: 8px;
             overflow-x: auto;
             font-size: 0.9rem;
+            border: 1px solid #333;
         }
 
         header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 20px;
+            padding: 15px 25px;
             background-color: #1e1e1e;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
         }
 
         header h1 {
-            font-size: 1.8rem;
+            font-size: 1.6rem;
             color: #bb86fc;
+            margin: 0;
+        }
+
+        .status {
+            display: flex;
+            gap: 15px;
+            font-size: 0.9rem;
+        }
+
+        .status div {
+            padding: 5px 12px;
+            border-radius: 15px;
+            background-color: #333;
+            color: #bbb;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .status div.connected {
+            background-color: rgba(3, 218, 198, 0.2);
+            color: #03dac6;
+        }
+
+        .status div.disconnected {
+            background-color: rgba(239, 76, 83, 0.2);
+            color: #ef4c53;
         }
 
         header .setupicon a {
-            font-size: 2rem;
+            font-size: 1.8rem;
             color: #03dac6;
             text-decoration: none;
             display: inline-block;
@@ -63,14 +90,17 @@
         main {
             display: flex;
             flex-direction: column;
-            gap: 20px;
-            margin-top: 20px;
+            gap: 24px;
+            margin-top: 24px;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         #mainscreen {
             display: flex;
             flex-wrap: wrap;
-            flex: 2;
+            gap: 24px;
         }
 
         .devremote {
@@ -78,92 +108,119 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             gap: 15px;
             background-color: #1e1e1e;
-            border-radius: 10px;
-            padding: 15px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
             min-width: 350px;
         }
 
         .screen-container {
             text-align: center;
             flex: 2;
-            padding: 20px;
+            padding: 25px;
             background-color: #1e1e1e;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+            min-width: 300px;
+        }
+
+        .screen-options {
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
 
         #screen {
-            border: 1px solid #bb86fc;
-            border-radius: 10px;
-            box-shadow: 0 0 15px rgba(187, 134, 252, 0.5);
+            border: 2px solid #333;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+            background-color: #000;
         }
 
         .btnControl {
-            box-shadow: none;
             border-radius: 50%;
             text-align: center;
             justify-content: center;
             align-items: center;
             padding: 0;
-            margin: 5px;
+            margin: 6px;
             overflow: hidden;
             width: 65px;
             height: 65px;
-            display: inline;
+            display: inline-block;
             color: white;
-            transition: transform 0.2s, background-color 0.3s;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+            transition: transform 0.15s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .btnControl:not(:disabled):active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
         }
 
         .btnLine {
-            display: block;
-            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         button:disabled {
-            background-color: #3a3a3a;
-            color: #7a7a7a;
+            background-color: #3a3a3a !important;
+            color: #7a7a7a !important;
             cursor: not-allowed;
-            box-shadow: none;
+            box-shadow: none !important;
+            transform: none !important;
         }
 
         .greenbtn {
-            background-color: #00a96f;
+            background-color: #03dac6;
+            color: #000;
         }
 
         .greenbtn:not(:disabled):hover {
-            background-color: #388e3c;
+            background-color: #018786;
+            color: #fff;
         }
 
         .redbtn {
-            background-color: #ef4c53;
+            background-color: #cf6679;
         }
 
         .redbtn:not(:disabled):hover {
-            background-color: #d32f2f;
+            background-color: #b00020;
         }
 
         .bluebtn {
-            background-color: #00b3f0;
+            background-color: #bb86fc;
+            color: #000;
         }
 
         .bluebtn:not(:disabled):hover {
-            background-color: #1976d2;
+            background-color: #9965f4;
+            color: #fff;
         }
 
 
         #espAppContainer,
         #devdatas,
         #wsDisplay,
-        #manualcommand {
+        #manualcommand,
+        #filemanager {
             display: flex;
             flex-direction: column;
             background-color: #1e1e1e;
-            border-radius: 10px;
-            padding: 15px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
             gap: 20px;
         }
 
@@ -202,7 +259,7 @@
         }
 
         #manualcommand input[type="text"] {
-            padding: 10px;
+            padding: 20px;
             border: 1px solid #03dac6;
             border-radius: 5px;
             background-color: #121212;
@@ -229,7 +286,30 @@
 
 
         #fileList {
-            min-width: 300px;
+            min-width: 100%;
+            background-color: #121212;
+            color: #e0e0e0;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 1rem;
+        }
+
+        #fileList:focus {
+            outline: none;
+            border-color: #03dac6;
+        }
+
+        input[type="file"] {
+            background-color: #121212;
+            color: #e0e0e0;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px dashed #555;
+            width: 100%;
+            margin: 10px 0;
+            box-sizing: border-box;
         }
 
         #fileProgress {
@@ -245,18 +325,34 @@
         }
 
         #espAppStartList button,
-        #btnEspAppStop {
+        #btnEspAppStop,
+        .espAppCnt button {
+            background-color: #333;
+            color: white;
             padding: 10px 15px;
-            border-radius: 5px;
+            border: none;
+            border-radius: 6px;
             font-size: 1rem;
             cursor: pointer;
+            margin: 5px 5px 5px 0;
+            transition: background-color 0.2s;
         }
 
-        .espAppCnt button {
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 1rem;
-            cursor: pointer;
+        #espAppStartList button:hover,
+        #btnEspAppStop:hover,
+        .espAppCnt button:hover {
+            background-color: #444;
+        }
+
+        #btnEspAppStop {
+            background-color: #cf6679;
+            color: #000;
+            font-weight: bold;
+        }
+
+        #btnEspAppStop:hover {
+            background-color: #b00020;
+            color: #fff;
         }
     </style>
 </head>
@@ -275,9 +371,11 @@
             <div class="screen-container">
                 <canvas id="screen" height="320" width="240">No gui support</canvas>
                 <div class="screen-options">
-                    <input type="checkbox" id="screenRefresh" name="autoScreenRefresh" checked />
-                    <label for="screenRefresh">Auto refresh</label><br />
-                    <button id="bntRefresh" class="greenbtn uicontrols" onclick="refreshScreen()">Refresh</button>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="screenRefresh" name="autoScreenRefresh" checked style="width: 18px; height: 18px; accent-color: #03dac6;" />
+                        Auto refresh
+                    </label>
+                    <button id="bntRefresh" class="action-btn uicontrols" onclick="refreshScreen()">Refresh</button>
                 </div>
             </div>
             <div class="devremote">
@@ -332,14 +430,17 @@
                 <div id="devHead">Heading: ?</div>
                 <div id="devGpsSats">Sats: ?</div>
             </div>
-            <div>
-                Gps debug: <input type="checkbox" id="gpsDebugChk" class="" onchange="gpsDebugChkChanged(this)" /></div>
-            <div id="devGPSDebugRes" style="display: none;"></div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="gpsDebugChk" style="width: 18px; height: 18px; accent-color: #03dac6;" onchange="gpsDebugChkChanged(this)" />
+                    Gps debug
+                </label>
+            </div>
+            <div id="devGPSDebugRes" style="display: none; background-color: #2e2e2e; padding: 10px; border-radius: 6px; font-family: monospace;"></div>
 
-            <div>
-                <button onclick="getGPSPosition();" id="btnGps" class="uicontrols">&#128204;</button>
-                <button class="uicontrols" id="btnOpenFlmgr" onclick="fileManOpen(); return false;">Open file
-                    manager</button>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button onclick="getGPSPosition();" id="btnGps" class="uicontrols" title="Get GPS Position">&#128204;</button>
+                <button class="action-btn uicontrols" id="btnOpenFlmgr" onclick="fileManOpen(); return false;">File Manager</button>
             </div>
         </section>
         <section id="wsDisplay">
@@ -374,8 +475,10 @@
 
         <section id="manualcommand">
             <h2>Manual Commands</h2>
-            <input type="text" id="manualtxt" />
-            <button onclick="manualSend()" id="btnManualSend" class="uicontrols">Send</button>
+            <div class="input-group">
+                <input type="text" id="manualtxt" placeholder="Enter command..." onkeydown="if(event.key === 'Enter') manualSend()" />
+                <button onclick="manualSend()" id="btnManualSend" class="action-btn uicontrols">Send</button>
+            </div>
             <pre id="log"></pre>
         </section>
     </main>
@@ -453,14 +556,18 @@
 
         function onOpen(event) {
             log("WS Connected");
-            document.getElementById("connState").innerHTML = "WS Connected.";
+            var connState = document.getElementById("connState");
+            connState.innerHTML = "WS Connected";
+            connState.className = "connected";
             sendMessage("#$##$$#GETINITDATA\r\n");
         }
 
         function onClose(event) {
             enadisaControls(false);
             log("WS Closed");
-            document.getElementById("connState").innerHTML = "WS Reconnecting...";
+            var connState = document.getElementById("connState");
+            connState.innerHTML = "WS Reconnecting...";
+            connState.className = "disconnected";
             setTimeout(initWebSocket, 1000);
         }
         function gotSensor(data) {
@@ -515,14 +622,18 @@
                         const ctx = canvas.getContext("2d");
                         ctx.fillStyle = "#000";
                         ctx.fillRect(0, 0, 240, 320);
-                        document.getElementById("connStatePP").innerHTML = "PP NOT connected to ESP";
+                        var connStatePP = document.getElementById("connStatePP");
+                        connStatePP.innerHTML = "PP Disconnected";
+                        connStatePP.className = "disconnected";
                         return false;
                     }
                     if (msg == "#$##$$#I2C_CC\r\n") {
                         log("PP Connected");
                         enadisaControls(true);
                         fileManClose();
-                        document.getElementById("connStatePP").innerHTML = "PP connected to ESP";
+                        var connStatePP = document.getElementById("connStatePP");
+                        connStatePP.innerHTML = "PP Connected";
+                        connStatePP.className = "connected";
                         autoScreenRefresh();
                         return false;
                     }
