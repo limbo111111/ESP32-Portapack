@@ -667,7 +667,13 @@
                     if (msg.startsWith("#$##$$#GOTDISPLAYMAIN")) {
                         let tmp = escapeHTML(msg.substring(21));
                         tmp = tmp.replaceAll("&#0092;n", "<br/>");
-                        document.getElementById("wsd_maintext").innerHTML = tmp;
+                        if (tmp.includes("MOTION DETECTED")) {
+                            document.getElementById("wsd_maintext").innerHTML = '<div style="background-color: #cf6679; color: black; padding: 20px; text-align: center; font-size: 1.5em; font-weight: bold; border-radius: 8px;">' + tmp + '</div>';
+                        } else if (tmp.includes("Scanning for motion")) {
+                            document.getElementById("wsd_maintext").innerHTML = '<div style="background-color: #2e2e2e; color: #e0e0e0; padding: 20px; text-align: center; border-radius: 8px;">' + tmp + '</div>';
+                        } else {
+                            document.getElementById("wsd_maintext").innerHTML = tmp;
+                        }
                         return false;
                     }
                 }
