@@ -13,6 +13,7 @@ If you got the MDK hardware, it has a different pinout, so check the correspondi
 - **GPS**
 - **Compass**
 - **Temperature + humidity + pressure + light**
+- **WiFi CSI motion detection / radar**
 - Portapack / PortaRF I2C interface support! Can add unique apps to PortaX!
 - On system apps! The ESP can handle it's own apps built into it. For example Wifi SSID spoofer. (see [Wiki](https://github.com/htotoo/ESP32-Portapack/wiki/On-system-apps) for it)
 

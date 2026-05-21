@@ -32,6 +32,7 @@ void EPAppWifiCsi::enable_csi() {
         .channel_filter_en = false,
         .manu_scale = false,
         .shift = 0,
+        .mac_filter_en = false,
         .dump_ack_en = false,
     };
     esp_wifi_set_csi_config(&csi_config);
