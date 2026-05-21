@@ -90,6 +90,7 @@ uint8_t shutdown_countdown = 0;  // when it is 1, init a shutdown. if >1 decreas
 #include "../extapps/tirapp.h"
 #include "../extapps/espmanager.h"
 #include "../extapps/espapps.h"
+#include "../extapps/wificsi.h"
 
 #include "display/displaymanager.hpp"
 
@@ -574,6 +575,7 @@ void app_main(void) {
     PPHandler::add_app((uint8_t*)espapps, sizeof(espapps));
     if (pinConfig.hasIRrx() || pinConfig.hasIRrx()) PPHandler::add_app((uint8_t*)tirapp, sizeof(tirapp));  // only add this app, if the user has ir tx or rx
     PPHandler::add_app((uint8_t*)espmanager, sizeof(espmanager));
+    PPHandler::add_app((uint8_t*)wificsi, sizeof(wificsi));
     PPHandler::set_get_features_CB([](uint64_t& feat) {
                                         i2c_pp_last_comm_time = time_millis;
                                     update_features();
