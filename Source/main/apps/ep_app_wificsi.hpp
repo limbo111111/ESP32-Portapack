@@ -26,8 +26,9 @@ class EPAppWifiCsi : public EPApp {
     uint32_t last_motion_time = 0;
     bool motion_detected = false;
 
-    // For variance calculation
-    float prev_amplitude = 0.0f;
+    // For variance calculation per subcarrier
+    static const int MAX_SUBCARRIERS = 128;
+    float prev_amplitudes[MAX_SUBCARRIERS] = {0.0f};
 
     void enable_csi();
     void disable_csi();
