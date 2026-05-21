@@ -32,8 +32,11 @@ void EPAppWifiCsi::enable_csi() {
         .channel_filter_en = false,
         .manu_scale = false,
         .shift = 0,
-        .dump_ack_en = false,
     };
+
+    wifi_promiscuous_filter_t filter = { .filter_mask = WIFI_PROMIS_FILTER_MASK_ALL };
+    esp_wifi_set_promiscuous_filter(&filter);
+
     esp_wifi_set_csi_config(&csi_config);
     esp_wifi_set_csi_rx_cb(&EPAppWifiCsi::csi_cb, this);
     esp_wifi_set_csi(true);
