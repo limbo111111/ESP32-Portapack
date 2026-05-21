@@ -59,8 +59,8 @@ void EPAppWifiCsi::process_csi_data(wifi_csi_info_t *data) {
     if (current_mode == 0) return;
 
     if (data->len > 0) {
-        // Calculate average amplitude of CSI data
-        float avg_amp = 0.0f;
+        // Calculate the difference in amplitude per subcarrier
+        float total_diff = 0.0f;
         int count = 0;
 
         // Skip first word if invalid
@@ -70,30 +70,37 @@ void EPAppWifiCsi::process_csi_data(wifi_csi_info_t *data) {
         }
 
         // CSI data is usually stored as pairs of (imaginary, real) for each subcarrier
-        // We'll calculate a simple average magnitude
         for (int i = start_idx; i < data->len - 1; i += 2) {
+            int subcarrier_idx = (i - start_idx) / 2;
+            if (subcarrier_idx >= MAX_SUBCARRIERS) {
+                break;
+            }
+
             int8_t imaginary = data->buf[i];
             int8_t real = data->buf[i+1];
             float mag = sqrt(imaginary * imaginary + real * real);
-            avg_amp += mag;
+
+            // Calculate absolute difference from this subcarrier's historical amplitude
+            if (prev_amplitudes[subcarrier_idx] > 0.1f) {
+                total_diff += fabs(mag - prev_amplitudes[subcarrier_idx]);
+            }
+
+            // Simple low pass filter for this subcarrier
+            prev_amplitudes[subcarrier_idx] = (prev_amplitudes[subcarrier_idx] * 0.9f) + (mag * 0.1f);
             count++;
         }
 
         if (count > 0) {
-            avg_amp /= count;
+            float avg_diff = total_diff / count;
 
-            // Calculate absolute difference from previous average amplitude
-            float diff = fabs(avg_amp - prev_amplitude);
-
-            // Threshold for motion detection. This might need tuning based on environment.
-            if (diff > 2.0f && prev_amplitude > 0.1f) {
+            // Threshold for motion detection based on per-subcarrier variance.
+            // A threshold around 0.5 - 1.5 is typically good, since we are averaging differences now,
+            // not diffing averages.
+            if (avg_diff > 1.2f) {
                 motion_detected = true;
                 last_motion_time = esp_timer_get_time() / 1000;
                 SetDisplayDirty();
             }
-
-            // Simple low pass filter for background
-            prev_amplitude = (prev_amplitude * 0.9f) + (avg_amp * 0.1f);
         }
     }
 }
