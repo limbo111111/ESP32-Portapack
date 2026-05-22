@@ -10,6 +10,9 @@
 
 class EPAppWifiSpam : public EPApp {
    public:
+    ~EPAppWifiSpam() {
+        disable_csi();
+    }
     bool OnPPData(uint16_t command, std::vector<uint8_t>& data) override;
     bool OnPPReqData(uint16_t command, std::vector<uint8_t>& data) override;
 
@@ -21,9 +24,22 @@ class EPAppWifiSpam : public EPApp {
    private:
     void sendBeacon(std::string ssid, uint8_t macid);
     void randomizeBeaconSrcMac(uint8_t* beacon_raw, uint8_t macid);
-    uint8_t current_mode = 0;  // standby, 1 = random chars, 2 = Rick Roll
+    uint8_t current_mode = 0;  // standby, 1 = random chars, 2 = Rick Roll, 3 = Emoji spam, 4 = CSI Active
     uint8_t ricknum = 0;
     uint32_t lastBeaconTime = 0;
+
+    // CSI variables
+    uint32_t last_motion_time = 0;
+    bool motion_detected = false;
+    static const int MAX_SUBCARRIERS = 128;
+    float prev_amplitudes[MAX_SUBCARRIERS] = {0.0f};
+
+    void enable_csi();
+    void disable_csi();
+    void process_csi_data(wifi_csi_info_t *data);
+
+   public:
+    static void csi_cb(void *ctx, wifi_csi_info_t *data);
 
     uint8_t packet[128] = {0x80, 0x00, 0x00, 0x00,                                 // Frame Control, Duration
                            /*4*/ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,               // Destination address
