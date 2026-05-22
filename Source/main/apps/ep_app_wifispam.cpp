@@ -10,15 +10,14 @@ void EPAppWifiSpam::enable_csi() {
     ESP_LOGI("WIFICSI", "Enabling CSI in WiFi Spam App");
     esp_wifi_set_promiscuous(true);
 
-    wifi_csi_config_t csi_config = {
-        .lltf_en = true,
-        .htltf_en = true,
-        .stbc_htltf2_en = true,
-        .ltf_merge_en = true,
-        .channel_filter_en = false,
-        .manu_scale = false,
-        .shift = 0,
-    };
+    wifi_csi_config_t csi_config = {};
+    csi_config.lltf_en = true;
+    csi_config.htltf_en = true;
+    csi_config.stbc_htltf2_en = true;
+    csi_config.ltf_merge_en = true;
+    csi_config.channel_filter_en = false;
+    csi_config.manu_scale = false;
+    csi_config.shift = 0;
 
     wifi_promiscuous_filter_t filter = { .filter_mask = WIFI_PROMIS_FILTER_MASK_ALL };
     esp_wifi_set_promiscuous_filter(&filter);

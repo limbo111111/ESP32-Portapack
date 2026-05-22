@@ -5,6 +5,7 @@
 
 #include "ep_app.hpp"
 #include "esp_random.h"
+#include <esp_wifi.h>
 
 #define APP_1_PRE_STR "#$$#$$$1"
 
