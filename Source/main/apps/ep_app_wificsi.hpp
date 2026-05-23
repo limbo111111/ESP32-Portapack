@@ -26,6 +26,15 @@ class EPAppWifiCsi : public EPApp {
     uint32_t last_motion_time = 0;
     bool motion_detected = false;
 
+    // Breathing/Micro-motion
+    uint32_t last_breathing_time = 0;
+    bool breathing_detected = false;
+
+    // Calibration
+    bool is_calibrating = false;
+    uint32_t calibration_start_time = 0;
+    static const uint32_t CALIBRATION_DURATION_MS = 10000; // 10 seconds
+
     // For variance calculation per subcarrier
     static const int MAX_SUBCARRIERS = 128;
     float prev_amplitudes[MAX_SUBCARRIERS] = {0.0f};

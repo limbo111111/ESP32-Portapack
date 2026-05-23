@@ -569,7 +569,7 @@ void app_main(void) {
     i2c_scan(pinConfig.I2cSdaPin(), pinConfig.I2cSclPin());  // scan again, after sensors initialized
 
     PPHandler::set_module_name("ESP32PP");
-    PPHandler::set_module_version(1);
+    PPHandler::set_module_version(2);
     PPHandler::add_app((uint8_t*)sattrack, sizeof(sattrack));  // no neet to pinfor gps, since it can handle manual input
     PPHandler::add_app((uint8_t*)wifisettings, sizeof(wifisettings));
     PPHandler::add_app((uint8_t*)espapps, sizeof(espapps));

@@ -21,6 +21,15 @@ EPAppWifiCsi::~EPAppWifiCsi() {
 void EPAppWifiCsi::enable_csi() {
     ESP_LOGI(TAG, "Enabling CSI");
 
+    // Reset calibration state
+    is_calibrating = true;
+    calibration_start_time = esp_timer_get_time() / 1000;
+    for(int i = 0; i < MAX_SUBCARRIERS; i++) {
+        prev_amplitudes[i] = 0.0f;
+    }
+    motion_detected = false;
+    breathing_detected = false;
+
     // For CSI to work correctly and receive packets, we need promiscuous mode
     esp_wifi_set_promiscuous(true);
 
@@ -40,6 +49,8 @@ void EPAppWifiCsi::enable_csi() {
     esp_wifi_set_csi_config(&csi_config);
     esp_wifi_set_csi_rx_cb(&EPAppWifiCsi::csi_cb, this);
     esp_wifi_set_csi(true);
+
+    SetDisplayDirty();
 }
 
 void EPAppWifiCsi::disable_csi() {
@@ -47,6 +58,7 @@ void EPAppWifiCsi::disable_csi() {
     esp_wifi_set_csi(false);
     esp_wifi_set_csi_rx_cb(nullptr, nullptr);
     esp_wifi_set_promiscuous(false);
+    is_calibrating = false;
 }
 
 void EPAppWifiCsi::csi_cb(void *ctx, wifi_csi_info_t *data) {
@@ -57,6 +69,8 @@ void EPAppWifiCsi::csi_cb(void *ctx, wifi_csi_info_t *data) {
 
 void EPAppWifiCsi::process_csi_data(wifi_csi_info_t *data) {
     if (current_mode == 0) return;
+
+    uint32_t now = esp_timer_get_time() / 1000;
 
     if (data->len > 0) {
         // Calculate the difference in amplitude per subcarrier
@@ -90,16 +104,21 @@ void EPAppWifiCsi::process_csi_data(wifi_csi_info_t *data) {
             count++;
         }
 
-        if (count > 0) {
+        if (count > 0 && !is_calibrating) {
             float avg_diff = total_diff / count;
 
             // Threshold for motion detection based on per-subcarrier variance.
             // A threshold around 0.5 - 1.5 is typically good, since we are averaging differences now,
             // not diffing averages.
             ESP_LOGD(TAG, "avg_diff: %f", avg_diff);
+
             if (avg_diff > 1.2f) {
                 motion_detected = true;
-                last_motion_time = esp_timer_get_time() / 1000;
+                last_motion_time = now;
+                SetDisplayDirty();
+            } else if (avg_diff > 0.3f && avg_diff <= 1.2f) { // Lower threshold for micro-motions/breathing
+                breathing_detected = true;
+                last_breathing_time = now;
                 SetDisplayDirty();
             }
         }
@@ -107,9 +126,36 @@ void EPAppWifiCsi::process_csi_data(wifi_csi_info_t *data) {
 }
 
 void EPAppWifiCsi::Loop(uint32_t currentMillis) {
+    bool dirty = false;
+
+    if (is_calibrating) {
+        if (currentMillis - calibration_start_time > CALIBRATION_DURATION_MS) {
+            is_calibrating = false;
+            ESP_LOGI(TAG, "Calibration complete");
+            dirty = true;
+        } else {
+            // Force refresh every ~1 second during calibration to update countdown
+            static uint32_t last_calib_refresh = 0;
+            if (currentMillis - last_calib_refresh > 1000) {
+                last_calib_refresh = currentMillis;
+                dirty = true;
+            }
+        }
+    }
+
     // Clear motion status after 2 seconds
     if (motion_detected && (currentMillis - last_motion_time > 2000)) {
         motion_detected = false;
+        dirty = true;
+    }
+
+    // Clear breathing status after 2 seconds
+    if (breathing_detected && (currentMillis - last_breathing_time > 2000)) {
+        breathing_detected = false;
+        dirty = true;
+    }
+
+    if (dirty) {
         SetDisplayDirty();
     }
 }
@@ -118,9 +164,20 @@ void EPAppWifiCsi::OnDisplayRequest(DisplayGeneric* display) {
     display->showTitle("WiFi Motion (CSI)");
     if (current_mode == 0) {
         display->showMainText("Mode: Standby");
+    } else if (is_calibrating) {
+        uint32_t now = esp_timer_get_time() / 1000;
+        int32_t elapsed = now - calibration_start_time;
+        int seconds = (CALIBRATION_DURATION_MS - elapsed) / 1000 + 1;
+        if (seconds < 0) seconds = 0;
+
+        char buf[64];
+        snprintf(buf, sizeof(buf), "Calibrating...\nPlease stand still.\n%d seconds left.", seconds);
+        display->showMainText(buf);
     } else {
         if (motion_detected) {
             display->showMainText("MOTION DETECTED!\n!!! Someone is moving !!!");
+        } else if (breathing_detected) {
+            display->showMainText("Breathing / Micro-motion\ndetected.");
         } else {
             display->showMainText("Scanning for motion...\n(Quiet)");
         }
