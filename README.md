@@ -36,26 +36,36 @@ Suggest in Issues if you get any ideas.
 ### Screenshots:
 **ADS-B with location**
 
-![](https://github.com/htotoo/ESP32-Portapack/blob/main/ScreenShots/ADSB_mycoords.png?raw=true)  ![](https://github.com/htotoo/ESP32-Portapack/blob/main/ScreenShots/ADSB_mycoords_with_orientation.png?raw=true)
+![](ScreenShots/ADSB_mycoords.png)  ![](ScreenShots/ADSB_mycoords_with_orientation.png)
 
 **ExtSensor app**
 
-![](https://github.com/htotoo/ESP32-Portapack/blob/main/ScreenShots/ExtSensorTester.png?raw=true)
+![](ScreenShots/ExtSensorTester.png)
 
 
 **Fox hunt app**
 
-![](https://github.com/htotoo/ESP32-Portapack/blob/main/ScreenShots/foxhunt.png?raw=true)
+![](ScreenShots/foxhunt.png)
 
 
 **SatTrack**
 
-![](https://github.com/htotoo/ESP32-Portapack/blob/main/ScreenShots/sattrack.png?raw=true)
+![](ScreenShots/sattrack.png)
 
 
 **Web app**
 
-![](https://github.com/htotoo/ESP32-Portapack/blob/main/ScreenShots/esp32pp_web.png?raw=true)
+![](ScreenShots/esp32pp_web.png)
+
+
+**Example assembly**
+
+![](ScreenShots/esp32pp_example_assembly.png)
+
+
+**Flashing**
+
+![](ScreenShots/flash.png)
 
 
 
