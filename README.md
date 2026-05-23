@@ -58,6 +58,11 @@ Suggest in Issues if you get any ideas.
 ![](ScreenShots/esp32pp_web.png)
 
 
+**Web app mit WiFi CSI**
+
+![](ScreenShots/esp32pp_web_csi.png)
+
+
 **Example assembly**
 
 ![](ScreenShots/esp32pp_example_assembly.png)
