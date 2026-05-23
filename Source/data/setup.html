@@ -9,29 +9,29 @@
 </head>
 
 <body>
-    <h1>ESP32 PP Setup</h1>
-    <h2><a href="/pinconfig.html">Pin Setup</a></h2>
+    <h1>⚙️ ESP32 PP Setup</h1>
+    <h2 style="margin-bottom: 20px;"><a href="/pinconfig.html">🔌 Pin Setup</a></h2>
     <form method="post">
         <div class="form-section">
-            <p>Host Name:</p>
+            <p>🏷️ Host Name:</p>
             <input type="text" maxlength="60" name="wifiHostName" value="%s" />
         </div>
         <div class="form-section">
-            <p>Wi-Fi AP</p>
+            <p>📡 Wi-Fi AP</p>
             <label>SSID:</label>
             <input type="text" maxlength="60" name="wifiAPSSID" value="%s" />
             <label>Password:</label>
             <input type="text" maxlength="60" name="wifiAPPASS" value="%s" />
         </div>
         <div class="form-section">
-            <p>Wi-Fi STA</p>
+            <p>📶 Wi-Fi STA</p>
             <label>SSID:</label>
             <input type="text" maxlength="60" name="wifiStaSSID" value="%s" />
             <label>Password:</label>
             <input type="text" maxlength="60" name="wifiStaPASS" value="%s" />
         </div>
         <div class="form-section">
-            <p>Miscellaneous</p>
+            <p>🔧 Miscellaneous</p>
             <label>RGB Brightness (%):</label>
             <input type="number" min="0" max="100" step="1" name="rgb_brightness" value="%d" />
             <label>Magnetic Declination Angle:</label>
@@ -56,13 +56,13 @@
             });
         </script>
         <div class="actions">
-            <input type="submit" name="submit" value="Save" />
-            <a href="/">Cancel</a>
+            <input type="submit" name="submit" value="💾 Save" />
+            <a href="/" style="padding: 12px 24px; background-color: #333; color: white; border-radius: 6px; text-decoration: none;">❌ Cancel</a>
         </div>
     </form>
-    <div class="info-text">
-        Wi-Fi changes require rebooting the ESP to apply.<br />
-        <a href="/ota.html">OTA Update ESP</a>
+    <div class="info-text" style="background-color: #1e1e1e; padding: 15px; border-radius: 10px; max-width: 600px; margin: 20px auto;">
+        ℹ️ Wi-Fi changes require rebooting the ESP to apply.<br /><br />
+        <a href="/ota.html" style="display: inline-block; background-color: #bb86fc; color: black; padding: 10px 20px; border-radius: 6px; font-weight: bold; text-decoration: none;">🔄 OTA Update ESP</a>
     </div>
 </body>
 
