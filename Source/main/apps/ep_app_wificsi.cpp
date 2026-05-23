@@ -85,8 +85,8 @@ void EPAppWifiCsi::process_csi_data(wifi_csi_info_t *data) {
                 total_diff += fabs(mag - prev_amplitudes[subcarrier_idx]);
             }
 
-            // Simple low pass filter for this subcarrier
-            prev_amplitudes[subcarrier_idx] = (prev_amplitudes[subcarrier_idx] * 0.9f) + (mag * 0.1f);
+            // Simple low pass filter for this subcarrier (acts as a slower baseline)
+            prev_amplitudes[subcarrier_idx] = (prev_amplitudes[subcarrier_idx] * 0.99f) + (mag * 0.01f);
             count++;
         }
 
@@ -96,6 +96,7 @@ void EPAppWifiCsi::process_csi_data(wifi_csi_info_t *data) {
             // Threshold for motion detection based on per-subcarrier variance.
             // A threshold around 0.5 - 1.5 is typically good, since we are averaging differences now,
             // not diffing averages.
+            ESP_LOGD(TAG, "avg_diff: %f", avg_diff);
             if (avg_diff > 1.2f) {
                 motion_detected = true;
                 last_motion_time = esp_timer_get_time() / 1000;
