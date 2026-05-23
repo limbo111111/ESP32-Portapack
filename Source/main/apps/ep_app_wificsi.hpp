@@ -22,7 +22,7 @@ class EPAppWifiCsi : public EPApp {
     static void csi_cb(void *ctx, wifi_csi_info_t *data);
 
    private:
-    uint8_t current_mode = 1;  // 0 = standby, 1 = active
+    uint8_t current_mode = 1;  // 0 = standby, 1 = motion, 2 = breathing
     uint32_t last_motion_time = 0;
     bool motion_detected = false;
 

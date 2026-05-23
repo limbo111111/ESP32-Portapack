@@ -107,19 +107,24 @@ void EPAppWifiCsi::process_csi_data(wifi_csi_info_t *data) {
         if (count > 0 && !is_calibrating) {
             float avg_diff = total_diff / count;
 
-            // Threshold for motion detection based on per-subcarrier variance.
-            // A threshold around 0.5 - 1.5 is typically good, since we are averaging differences now,
-            // not diffing averages.
             ESP_LOGD(TAG, "avg_diff: %f", avg_diff);
 
-            if (avg_diff > 1.2f) {
-                motion_detected = true;
-                last_motion_time = now;
-                SetDisplayDirty();
-            } else if (avg_diff > 0.3f && avg_diff <= 1.2f) { // Lower threshold for micro-motions/breathing
-                breathing_detected = true;
-                last_breathing_time = now;
-                SetDisplayDirty();
+            if (current_mode == 1) { // Motion Mode
+                if (avg_diff > 1.2f) {
+                    motion_detected = true;
+                    last_motion_time = now;
+                    SetDisplayDirty();
+                }
+            } else if (current_mode == 2) { // Breathing Mode
+                if (avg_diff > 1.2f) {
+                    motion_detected = true; // Still track large motion to warn user
+                    last_motion_time = now;
+                    SetDisplayDirty();
+                } else if (avg_diff > 0.3f && avg_diff <= 1.2f) { // Lower threshold for micro-motions/breathing
+                    breathing_detected = true;
+                    last_breathing_time = now;
+                    SetDisplayDirty();
+                }
             }
         }
     }
@@ -161,7 +166,12 @@ void EPAppWifiCsi::Loop(uint32_t currentMillis) {
 }
 
 void EPAppWifiCsi::OnDisplayRequest(DisplayGeneric* display) {
-    display->showTitle("WiFi Motion (CSI)");
+    if (current_mode == 2) {
+        display->showTitle("WiFi CSI Breathing");
+    } else {
+        display->showTitle("WiFi CSI Motion");
+    }
+
     if (current_mode == 0) {
         display->showMainText("Mode: Standby");
     } else if (is_calibrating) {
@@ -174,12 +184,20 @@ void EPAppWifiCsi::OnDisplayRequest(DisplayGeneric* display) {
         snprintf(buf, sizeof(buf), "Calibrating...\nPlease stand still.\n%d seconds left.", seconds);
         display->showMainText(buf);
     } else {
-        if (motion_detected) {
-            display->showMainText("MOTION DETECTED!\n!!! Someone is moving !!!");
-        } else if (breathing_detected) {
-            display->showMainText("Breathing / Micro-motion\ndetected.");
-        } else {
-            display->showMainText("Scanning for motion...\n(Quiet)");
+        if (current_mode == 1) { // Motion Mode
+            if (motion_detected) {
+                display->showMainText("MOTION DETECTED!\n!!! Someone is moving !!!");
+            } else {
+                display->showMainText("Scanning for motion...\n(Quiet)");
+            }
+        } else if (current_mode == 2) { // Breathing Mode
+            if (motion_detected) {
+                display->showMainText("TOO MUCH MOTION!\nPlease sit still to\ndetect breathing.");
+            } else if (breathing_detected) {
+                display->showMainText("Breathing / Micro-motion\ndetected.");
+            } else {
+                display->showMainText("Scanning for breathing...\n(Quiet)");
+            }
         }
     }
 }
@@ -193,6 +211,12 @@ bool EPAppWifiCsi::OnWebData(std::string& data) {
     }
     if (data.compare(APP_CSI_PRE_STR "1\r\n") == 0) {
         current_mode = 1;
+        enable_csi();
+        SetDisplayDirty();
+        return true;
+    }
+    if (data.compare(APP_CSI_PRE_STR "2\r\n") == 0) {
+        current_mode = 2;
         enable_csi();
         SetDisplayDirty();
         return true;

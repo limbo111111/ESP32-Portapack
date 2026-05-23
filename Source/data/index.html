@@ -331,17 +331,22 @@
             color: white;
             padding: 10px 15px;
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             font-size: 1rem;
             cursor: pointer;
             margin: 5px 5px 5px 0;
-            transition: background-color 0.2s;
+            transition: background-color 0.2s, transform 0.1s;
         }
 
         #espAppStartList button:hover,
         #btnEspAppStop:hover,
         .espAppCnt button:hover {
             background-color: #444;
+        }
+
+        #espAppStartList button:active,
+        .espAppCnt button:active {
+            transform: scale(0.95);
         }
 
         #btnEspAppStop {
@@ -354,6 +359,37 @@
             background-color: #b00020;
             color: #fff;
         }
+
+        section {
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+            border: 1px solid #333;
+        }
+
+        section h2 {
+            color: #03dac6;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+            text-align: left;
+        }
+
+        input[type="text"], input[type="file"], select {
+            background-color: #121212;
+            color: #e0e0e0;
+            border: 1px solid #03dac6;
+            padding: 10px;
+            border-radius: 6px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            box-shadow: 0 0 5px rgba(3, 218, 198, 0.5);
+        }
     </style>
 </head>
 
@@ -364,7 +400,7 @@
             <div id="connState">WS Connecting...</div>
             <div id="connStatePP">PP not connected to ESP</div>
         </div>
-        <div class="setupicon"><a href="setup.html">&#9881;</a></div>
+        <div class="setupicon"><a href="/setup.html">⚙️</a></div>
     </header>
     <main>
         <section id="mainscreen">
@@ -454,33 +490,36 @@
             <div><button id="btnEspAppStop" style="display: none;" onclick="sendMessage('#$##$$$00\r\n')">Stop</button>
             </div>
             <div id="espAppStartList" style="display: none;">
-                <button onclick="sendMessage('#$##$$$01\r\n')">Wifi SSID spam</button>
-                <button onclick="sendMessage('#$##$$$04\r\n')">Wifi CSI motion</button>
+                <button onclick="sendMessage('#$##$$$01\r\n')">📶 Wifi SSID spam</button>
+                <button onclick="sendMessage('#$##$$$04\r\n')">📡 Wifi CSI motion</button>
                 <!-- <button onclick="sendMessage('#$##$$$02\r\n')">Wifi list</button>
                 <button onclick="sendMessage('#$##$$$03\r\n')">Wifi probe sniffer</button> -->
             </div>
-            <div id="espAppDT1" class="espAppCnt" style="display: none;">
-                <h3>Wifi spam</h3>
-                <button onclick="sendMessage('#$$#$$$10\r\n')">Standby mode</button>
-                <button onclick="sendMessage('#$$#$$$11\r\n')">Random mode</button>
-                <button onclick="sendMessage('#$$#$$$12\r\n')">Rick Roll mode</button>
-                <button onclick="sendMessage('#$$#$$$13\r\n')">Emoji spam mode</button>
+            <div id="espAppDT1" class="espAppCnt" style="display: none; background-color: #1e1e1e; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5); margin-top: 15px;">
+                <h3 style="color: #03dac6; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 5px;">📶 WiFi Spam</h3>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button onclick="sendMessage('#$$#$$$10\r\n')" style="background-color: #333; color: white; border: 1px solid #555;">⏸️ Standby Mode</button>
+                    <button onclick="sendMessage('#$$#$$$11\r\n')">🎲 Random Mode</button>
+                    <button onclick="sendMessage('#$$#$$$12\r\n')">🎵 Rick Roll Mode</button>
+                    <button onclick="sendMessage('#$$#$$$13\r\n')">😀 Emoji Spam Mode</button>
+                </div>
             </div>
             <div id="espAppDT4" class="espAppCnt" style="display: none; background-color: #1e1e1e; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5); margin-top: 15px;">
-                <h3 style="color: #03dac6; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 5px;">📡 WiFi CSI Motion Radar</h3>
+                <h3 style="color: #03dac6; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 5px;">📡 WiFi CSI Radar</h3>
                 <p style="color: #bbb; font-size: 0.9rem; margin-bottom: 15px;">Turn WiFi signals into real-time spatial intelligence.</p>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button onclick="sendMessage('#$$#$$$40\r\n')" style="background-color: #333; color: white; border: 1px solid #555;">⏸️ Standby Mode</button>
-                    <button onclick="sendMessage('#$$#$$$41\r\n')" style="background-color: #03dac6; color: black; font-weight: bold; border: none;">▶️ Active Mode</button>
+                    <button onclick="sendMessage('#$$#$$$40\r\n')" style="background-color: #333; color: white; border: 1px solid #555;">⏸️ Standby</button>
+                    <button onclick="sendMessage('#$$#$$$41\r\n')" style="background-color: #03dac6; color: black; font-weight: bold; border: none;">🏃 Motion Mode</button>
+                    <button onclick="sendMessage('#$$#$$$42\r\n')" style="background-color: #bb86fc; color: black; font-weight: bold; border: none;">🫁 Breathing Mode</button>
                 </div>
             </div>
         </section>
 
         <section id="manualcommand">
-            <h2>Manual Commands</h2>
-            <div class="input-group">
-                <input type="text" id="manualtxt" placeholder="Enter command..." onkeydown="if(event.key === 'Enter') manualSend()" />
-                <button onclick="manualSend()" id="btnManualSend" class="action-btn uicontrols">Send</button>
+            <h2>💻 Manual Commands</h2>
+            <div class="input-group" style="display: flex; gap: 10px;">
+                <input type="text" id="manualtxt" placeholder="Enter command..." onkeydown="if(event.key === 'Enter') manualSend()" style="flex: 1;" />
+                <button onclick="manualSend()" id="btnManualSend" class="action-btn uicontrols" style="padding: 10px 20px; background-color: #03dac6; color: black; font-weight: bold; border-radius: 6px; border: none; cursor: pointer;">Send</button>
             </div>
             <pre id="log"></pre>
         </section>
