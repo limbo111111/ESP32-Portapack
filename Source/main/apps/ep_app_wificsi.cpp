@@ -51,7 +51,6 @@ void EPAppWifiCsi::enable_csi(uint32_t currentMillis) {
     last_calib_refresh     = currentMillis;
     calib_seconds_left     = CALIBRATION_DURATION_MS / 1000;
     motion_detected        = false;
-    breathing_detected     = false;
     for (int i = 0; i < MAX_SUBCARRIERS; i++) {
         prev_amplitudes[i] = 0.0f;
     }
@@ -138,13 +137,6 @@ void EPAppWifiCsi::process_csi_data(wifi_csi_info_t *data) {
     if (avg_diff > MOTION_THRESHOLD) {
         motion_detected  = true;
         last_motion_time = now;
-        // In breathing mode, large motion invalidates breathing detection.
-        if (current_mode == 2) {
-            breathing_detected = false;
-        }
-    } else if (current_mode == 2 && avg_diff > BREATHING_THRESHOLD) {
-        breathing_detected  = true;
-        last_breathing_time = now;
     }
 
     portEXIT_CRITICAL(&mux);
@@ -179,7 +171,6 @@ void EPAppWifiCsi::Loop(uint32_t currentMillis) {
     // Read/clear shared flags under spinlock.
     portENTER_CRITICAL(&mux);
     bool snap_motion    = motion_detected;
-    bool snap_breathing = breathing_detected;
     portEXIT_CRITICAL(&mux);
 
     if (snap_motion && (currentMillis - last_motion_time > MOTION_TIMEOUT_MS)) {
@@ -189,12 +180,7 @@ void EPAppWifiCsi::Loop(uint32_t currentMillis) {
         dirty = true;
     }
 
-    if (snap_breathing && (currentMillis - last_breathing_time > BREATHING_TIMEOUT_MS)) {
-        portENTER_CRITICAL(&mux);
-        breathing_detected = false;
-        portEXIT_CRITICAL(&mux);
-        dirty = true;
-    }
+
 
     if (dirty) {
         SetDisplayDirty();
@@ -209,8 +195,7 @@ void EPAppWifiCsi::OnDisplayRequest(DisplayGeneric* display) {
     // Title
     if (current_mode == 0) {
         display->showTitle("WiFi CSI");
-    } else if (current_mode == 2) {
-        display->showTitle("WiFi CSI Breathing");
+
     } else {
         display->showTitle("WiFi CSI Motion");
     }
@@ -236,7 +221,6 @@ void EPAppWifiCsi::OnDisplayRequest(DisplayGeneric* display) {
     // a consistent snapshot for display purposes (worst case: one frame stale).
     portENTER_CRITICAL(&mux);
     bool m = motion_detected;
-    bool b = breathing_detected;
     portEXIT_CRITICAL(&mux);
 
     if (current_mode == 1) {
@@ -245,14 +229,7 @@ void EPAppWifiCsi::OnDisplayRequest(DisplayGeneric* display) {
         } else {
             display->showMainText("Scanning for motion...\n(Quiet)");
         }
-    } else if (current_mode == 2) {
-        if (m) {
-            display->showMainText("TOO MUCH MOTION!\nPlease sit still to\ndetect breathing.");
-        } else if (b) {
-            display->showMainText("Breathing / Micro-motion\ndetected.");
-        } else {
-            display->showMainText("Scanning for breathing...\n(Quiet)");
-        }
+
     }
 }
 
@@ -274,12 +251,7 @@ bool EPAppWifiCsi::OnWebData(std::string& data) {
         SetDisplayDirty();
         return true;
     }
-    if (data.compare(APP_CSI_PRE_STR "2\r\n") == 0) {
-        current_mode = 2;
-        enable_csi((uint32_t)(esp_timer_get_time() / 1000ULL));
-        SetDisplayDirty();
-        return true;
-    }
+
     return false;
 }
 
@@ -310,7 +282,7 @@ bool EPAppWifiCsi::OnPPReqData(uint16_t command, std::vector<uint8_t>& data) {
 
         portENTER_CRITICAL(&mux);
         data[2] = motion_detected    ? 1 : 0;
-        data[3] = breathing_detected ? 1 : 0;
+        data[3] = 0;
         portEXIT_CRITICAL(&mux);
 
         return true;

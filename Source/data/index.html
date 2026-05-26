@@ -3,6 +3,7 @@
 
 <head>
     <title>ESP32PP v0.33</title>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         * {
@@ -541,7 +542,6 @@
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                     <button onclick="sendMessage('#$$#$$$40\r\n')" style="background-color: #333; color: white; border: 1px solid #555;">⏸️ Standby</button>
                     <button onclick="sendMessage('#$$#$$$41\r\n')" style="background-color: #03dac6; color: black; font-weight: bold; border: none;">🏃 Motion Mode</button>
-                    <button onclick="sendMessage('#$$#$$$42\r\n')" style="background-color: #bb86fc; color: black; font-weight: bold; border: none;">🫁 Breathing Mode</button>
                 </div>
             </div>
         </section>
@@ -678,10 +678,12 @@
         }
 
         function escapeHTML(unsafe) {
-            return unsafe.replace(
-                /[\u0000-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u00FF]/g,
-                c => '&#' + ('000' + c.charCodeAt(0)).slice(-4) + ';'
-            )
+            return unsafe
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
         }
         //one line received
         function onMessageLine(msg) {
@@ -739,7 +741,7 @@
                     }
                     if (msg.startsWith("#$##$$#GOTDISPLAYMAIN")) {
                         let tmp = escapeHTML(msg.substring(21));
-                        tmp = tmp.replaceAll("&#0092;n", "<br/>");
+                        tmp = tmp.replaceAll("\\n", "<br/>");
                         if (tmp.includes("MOTION")) {
                             document.getElementById("wsd_maintext").innerHTML = '<div style="background-color: #cf6679; color: black; padding: 20px; text-align: center; font-size: 1.5em; font-weight: bold; border-radius: 8px;">' + tmp + '</div>';
                         } else if (tmp.includes("Scanning")) {

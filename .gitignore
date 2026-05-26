@@ -21,3 +21,4 @@ venv/
 # Other
 *.bak
 Source/.vscode/settings.json
+node_modules/
