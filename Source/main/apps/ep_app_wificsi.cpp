@@ -14,18 +14,9 @@ static EPAppWifiCsi* csi_app_instance = nullptr;
 
 EPAppWifiCsi::EPAppWifiCsi() {
     csi_app_instance = this;
-    // Loop hasn't started yet; use esp_timer for the very first enable so
-    // calibration_start_time is set properly once Loop provides currentMillis.
-    // We pass 0 here — Loop will correct it on the first tick via enable_csi
-    // not being called from Loop context at construction time.
-    // Simpler: delay CSI start to first Loop call instead.
-    // => Just mark calibrating=false and let OnWebData/OnPPData or the first
-    //    Loop call decide. But original code called enable_csi() here, so we
-    //    preserve that. We use esp_timer_get_time()/1000 only in the
-    //    constructor where currentMillis isn't available yet, and reset it in
-    //    the first Loop tick if still calibrating.
-    uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000ULL);
-    enable_csi(now_ms);
+    // Bug fix: do NOT call enable_csi() here.
+    // current_mode defaults to 0 (standby); CSI starts only when the user
+    // explicitly selects mode 1 via OnWebData / OnPPData.
 }
 
 EPAppWifiCsi::~EPAppWifiCsi() {
@@ -51,7 +42,7 @@ void EPAppWifiCsi::enable_csi(uint32_t currentMillis) {
     last_calib_refresh     = currentMillis;
     calib_seconds_left     = CALIBRATION_DURATION_MS / 1000;
     motion_detected        = false;
-    breathing_detected     = false;
+    last_motion_time       = 0;
     for (int i = 0; i < MAX_SUBCARRIERS; i++) {
         prev_amplitudes[i] = 0.0f;
     }
@@ -85,7 +76,8 @@ void EPAppWifiCsi::disable_csi() {
     esp_wifi_set_csi_rx_cb(nullptr, nullptr);
     esp_wifi_set_promiscuous(false);
     // Safe to write without lock: callback is disabled above.
-    is_calibrating = false;
+    is_calibrating  = false;
+    motion_detected = false;
 }
 
 // ---------------------------------------------------------------------------
@@ -132,21 +124,13 @@ void EPAppWifiCsi::process_csi_data(wifi_csi_info_t *data) {
     float avg_diff = total_diff / (float)count;
     ESP_LOGD(TAG, "avg_diff: %.4f", avg_diff);
 
-    // Write shared flags under spinlock so Loop/Display see consistent values.
+    // Bug fix: last_motion_time must be written inside the spinlock so Loop
+    // always reads a consistent pair of (motion_detected, last_motion_time).
     portENTER_CRITICAL(&mux);
-
     if (avg_diff > MOTION_THRESHOLD) {
         motion_detected  = true;
         last_motion_time = now;
-        // In breathing mode, large motion invalidates breathing detection.
-        if (current_mode == 2) {
-            breathing_detected = false;
-        }
-    } else if (current_mode == 2 && avg_diff > BREATHING_THRESHOLD) {
-        breathing_detected  = true;
-        last_breathing_time = now;
     }
-
     portEXIT_CRITICAL(&mux);
 
     SetDisplayDirty();
@@ -170,28 +154,21 @@ void EPAppWifiCsi::Loop(uint32_t currentMillis) {
         } else if (currentMillis - last_calib_refresh >= CALIB_REFRESH_MS) {
             last_calib_refresh = currentMillis;
             uint32_t remaining = CALIBRATION_DURATION_MS - elapsed;
-            // floor division; shows 0 only in the last sub-second
             calib_seconds_left = remaining / 1000;
             dirty = true;
         }
     }
 
-    // Read/clear shared flags under spinlock.
+    // Bug fix: read motion_detected AND last_motion_time together under the
+    // spinlock — they are written as a pair in process_csi_data.
     portENTER_CRITICAL(&mux);
-    bool snap_motion    = motion_detected;
-    bool snap_breathing = breathing_detected;
+    bool     snap_motion      = motion_detected;
+    uint32_t snap_motion_time = last_motion_time;
     portEXIT_CRITICAL(&mux);
 
-    if (snap_motion && (currentMillis - last_motion_time > MOTION_TIMEOUT_MS)) {
+    if (snap_motion && (currentMillis - snap_motion_time > MOTION_TIMEOUT_MS)) {
         portENTER_CRITICAL(&mux);
         motion_detected = false;
-        portEXIT_CRITICAL(&mux);
-        dirty = true;
-    }
-
-    if (snap_breathing && (currentMillis - last_breathing_time > BREATHING_TIMEOUT_MS)) {
-        portENTER_CRITICAL(&mux);
-        breathing_detected = false;
         portEXIT_CRITICAL(&mux);
         dirty = true;
     }
@@ -206,24 +183,15 @@ void EPAppWifiCsi::Loop(uint32_t currentMillis) {
 // ---------------------------------------------------------------------------
 
 void EPAppWifiCsi::OnDisplayRequest(DisplayGeneric* display) {
-    // Title
     if (current_mode == 0) {
         display->showTitle("WiFi CSI");
-    } else if (current_mode == 2) {
-        display->showTitle("WiFi CSI Breathing");
-    } else {
-        display->showTitle("WiFi CSI Motion");
-    }
-
-    // Body
-    if (current_mode == 0) {
         display->showMainText("Mode: Standby");
         return;
     }
 
+    display->showTitle("WiFi CSI Motion");
+
     if (is_calibrating) {
-        // calib_seconds_left is updated by Loop; safe to read without lock
-        // (uint32_t write is atomic on Xtensa, and it's only written by Loop).
         char buf[64];
         snprintf(buf, sizeof(buf),
                  "Calibrating...\nPlease stand still.\n%u seconds left.",
@@ -232,27 +200,14 @@ void EPAppWifiCsi::OnDisplayRequest(DisplayGeneric* display) {
         return;
     }
 
-    // Read volatile flags once — no lock needed here because we only need
-    // a consistent snapshot for display purposes (worst case: one frame stale).
     portENTER_CRITICAL(&mux);
     bool m = motion_detected;
-    bool b = breathing_detected;
     portEXIT_CRITICAL(&mux);
 
-    if (current_mode == 1) {
-        if (m) {
-            display->showMainText("MOTION DETECTED!\n!!! Someone is moving !!!");
-        } else {
-            display->showMainText("Scanning for motion...\n(Quiet)");
-        }
-    } else if (current_mode == 2) {
-        if (m) {
-            display->showMainText("TOO MUCH MOTION!\nPlease sit still to\ndetect breathing.");
-        } else if (b) {
-            display->showMainText("Breathing / Micro-motion\ndetected.");
-        } else {
-            display->showMainText("Scanning for breathing...\n(Quiet)");
-        }
+    if (m) {
+        display->showMainText("MOTION DETECTED!\n!!! Someone is moving !!!");
+    } else {
+        display->showMainText("Scanning for motion...\n(Quiet)");
     }
 }
 
@@ -269,17 +224,11 @@ bool EPAppWifiCsi::OnWebData(std::string& data) {
     }
     if (data.compare(APP_CSI_PRE_STR "1\r\n") == 0) {
         current_mode = 1;
-        // currentMillis not available here; fall back to esp_timer.
         enable_csi((uint32_t)(esp_timer_get_time() / 1000ULL));
         SetDisplayDirty();
         return true;
     }
-    if (data.compare(APP_CSI_PRE_STR "2\r\n") == 0) {
-        current_mode = 2;
-        enable_csi((uint32_t)(esp_timer_get_time() / 1000ULL));
-        SetDisplayDirty();
-        return true;
-    }
+    // Mode 2 (breathing) removed — not supported.
     return false;
 }
 
@@ -287,7 +236,8 @@ bool EPAppWifiCsi::OnPPData(uint16_t command, std::vector<uint8_t>& data) {
     if (command == PPCMD_APPMGR_APPCMD) {
         if (data.size() >= 2) {
             uint16_t new_mode = *reinterpret_cast<uint16_t*>(data.data());
-            if (new_mode <= 2) {
+            // Bug fix: clamp to 1 (breathing mode 2 removed).
+            if (new_mode <= 1) {
                 current_mode = static_cast<uint8_t>(new_mode);
                 if (current_mode == 0) {
                     disable_csi();
@@ -304,13 +254,12 @@ bool EPAppWifiCsi::OnPPData(uint16_t command, std::vector<uint8_t>& data) {
 
 bool EPAppWifiCsi::OnPPReqData(uint16_t command, std::vector<uint8_t>& data) {
     if (command == PPCMD_APPMGR_APPCMD) {
-        // 4 bytes: [mode (uint16_t)] [motion_detected] [breathing_detected]
-        data.resize(4);
+        // 3 bytes: [mode (uint16_t)] [motion_detected]
+        data.resize(3);
         *reinterpret_cast<uint16_t*>(data.data()) = current_mode;
 
         portENTER_CRITICAL(&mux);
-        data[2] = motion_detected    ? 1 : 0;
-        data[3] = breathing_detected ? 1 : 0;
+        data[2] = motion_detected ? 1 : 0;
         portEXIT_CRITICAL(&mux);
 
         return true;
