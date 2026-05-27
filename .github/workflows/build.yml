@@ -9,7 +9,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: espressif/idf:latest
+    container: espressif/idf:release-v5.3
 
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
