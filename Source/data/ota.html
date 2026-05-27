@@ -1,123 +1,381 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP32 OTA Update</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg:       #080b10;
+            --surface:  #0d1117;
+            --panel:    #111820;
+            --border:   #1e2d3d;
+            --cyan:     #00e5ff;
+            --cyan-dim: #007a8a;
+            --purple:   #a855f7;
+            --red:      #ff2d55;
+            --text:     #c8d8e8;
+            --text-dim: #556070;
+            --green:    #39ff14;
+            --mono:     'Share Tech Mono', monospace;
+            --ui:       'Rajdhani', sans-serif;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
-            font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #121212;
-            color: #e0e0e0;
-            margin: 0;
-            padding: 20px;
+            font-family: var(--ui);
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background-image:
+                radial-gradient(ellipse 60% 50% at 50% 20%, rgba(168,85,247,0.05) 0%, transparent 60%),
+                repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0,229,255,0.015) 40px),
+                repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0,229,255,0.01) 40px);
+        }
+
+        body::before {
+            content: '';
+            position: fixed; inset: 0;
+            background: repeating-linear-gradient(to bottom, transparent 0px, transparent 2px, rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px);
+            pointer-events: none; z-index: 9999;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* &#9472;&#9472; HEADER &#9472;&#9472; */
+        .ota-header {
             text-align: center;
-            line-height: 1.6;
         }
-
-        h1 {
-            color: #bb86fc;
-            font-size: 1.8rem;
-            margin-bottom: 20px;
-        }
-
-        label {
+        .ota-icon {
+            font-size: 2.5rem;
             display: block;
-            margin: 10px 0 5px;
+            margin-bottom: 10px;
+            animation: spin-slow 8s linear infinite;
+        }
+        @keyframes spin-slow {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        h1 {
+            font-family: var(--mono);
+            font-size: 1.1rem;
+            color: var(--purple);
+            letter-spacing: 0.2em;
+            text-shadow: 0 0 16px rgba(168,85,247,0.5);
+        }
+        .subtitle {
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+            margin-top: 6px;
+        }
+
+        /* &#9472;&#9472; PANEL &#9472;&#9472; */
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+        .panel::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--purple), var(--cyan), transparent);
+            opacity: 0.6;
+        }
+        .panel-body {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* &#9472;&#9472; DROP ZONE &#9472;&#9472; */
+        .drop-zone {
+            border: 2px dashed var(--border);
+            border-radius: 4px;
+            padding: 30px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            position: relative;
+            background: rgba(0,0,0,0.3);
+        }
+        .drop-zone:hover, .drop-zone.has-file {
+            border-color: var(--cyan-dim);
+            background: rgba(0,229,255,0.04);
+        }
+        .drop-zone.has-file { border-color: var(--green); background: rgba(57,255,20,0.04); }
+
+        .drop-icon {
+            font-size: 2rem;
+            display: block;
+            margin-bottom: 8px;
+            opacity: 0.6;
+        }
+        .drop-label {
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            letter-spacing: 0.08em;
+        }
+        .drop-label strong {
+            display: block;
+            color: var(--cyan);
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+        }
+        .file-name {
+            font-family: var(--mono);
+            font-size: 0.8rem;
+            color: var(--green);
+            margin-top: 8px;
+            display: none;
         }
 
         input[type="file"] {
-            padding: 10px;
-            border-radius: 6px;
-            background-color: #1e1e1e;
-            color: #e0e0e0;
-            border: 2px dashed #555;
+            position: absolute;
+            inset: 0;
+            opacity: 0;
             cursor: pointer;
-            margin: 10px auto;
-            display: block;
-            width: 80%;
-            max-width: 400px;
-            box-sizing: border-box;
+            width: 100%;
+            height: 100%;
         }
 
-        button {
-            background-color: #03dac6;
-            color: #000;
-            border: none;
-            border-radius: 6px;
-            padding: 12px 24px;
-            cursor: pointer;
-            font-size: 1.1rem;
-            font-weight: bold;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-            transition: all 0.3s ease;
-        }
-
-        button:hover {
-            background-color: #018786;
+        /* &#9472;&#9472; UPLOAD BUTTON &#9472;&#9472; */
+        .upload-btn {
+            width: 100%;
+            background: var(--purple);
             color: #fff;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+            border: none;
+            border-radius: 3px;
+            padding: 14px;
+            font-family: var(--mono);
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
         }
-
-        button:active {
-            transform: translateY(1px);
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        .upload-btn::before {
+            content: '';
+            position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: left 0.4s;
         }
-
-        button:disabled {
-            background-color: #3a3a3a !important;
-            color: #7a7a7a !important;
-            cursor: not-allowed;
+        .upload-btn:hover::before { left: 100%; }
+        .upload-btn:hover { background: #b97cf8; box-shadow: 0 0 20px rgba(168,85,247,0.4); }
+        .upload-btn:active { transform: scale(0.98); }
+        .upload-btn:disabled {
+            background: rgba(168,85,247,0.2) !important;
+            color: var(--text-dim) !important;
+            cursor: not-allowed !important;
             box-shadow: none !important;
             transform: none !important;
         }
 
-        #progress {
-            margin-top: 20px;
-            font-size: 1rem;
-            color: #bb86fc;
+        /* &#9472;&#9472; PROGRESS &#9472;&#9472; */
+        .progress-wrap {
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .progress-wrap.active { display: flex; }
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            letter-spacing: 0.08em;
+        }
+        .progress-label .pct { color: var(--cyan); }
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 2px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--cyan-dim), var(--cyan));
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 8px rgba(0,229,255,0.5);
+        }
+
+        /* &#9472;&#9472; STATUS MSG &#9472;&#9472; */
+        #statusMsg {
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            text-align: center;
+            color: var(--text-dim);
+            min-height: 20px;
+            letter-spacing: 0.05em;
+        }
+        #statusMsg.ok  { color: var(--green); }
+        #statusMsg.err { color: var(--red); }
+
+        /* &#9472;&#9472; BACK LINK &#9472;&#9472; */
+        .back-wrap {
+            text-align: center;
+        }
+        .back-link {
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            text-decoration: none;
+            letter-spacing: 0.1em;
+            padding: 8px 16px;
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            transition: all 0.2s;
+            display: inline-block;
+        }
+        .back-link:hover { color: var(--cyan); border-color: var(--cyan-dim); background: rgba(0,229,255,0.06); }
+
+        /* &#9472;&#9472; WARN BOX &#9472;&#9472; */
+        .warn-box {
+            background: rgba(255,45,85,0.06);
+            border: 1px solid rgba(255,45,85,0.25);
+            border-radius: 3px;
+            padding: 12px 16px;
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            color: rgba(255,45,85,0.8);
+            letter-spacing: 0.05em;
+            line-height: 1.6;
         }
     </style>
+
     <script>
+        function updateFileDisplay(input) {
+            var zone  = document.getElementById('dropZone');
+            var fname = document.getElementById('fileName');
+            if (input.files.length > 0) {
+                zone.classList.add('has-file');
+                fname.style.display = 'block';
+                fname.textContent = '[OK] ' + input.files[0].name;
+            }
+        }
+
         function startUpload() {
             var otafile = document.getElementById("otafile").files;
-            if (otafile.length === 0) return alert("No file selected!");
-            document.getElementById("otafile").disabled = true;
-            document.getElementById("upload").disabled = true;
+            if (otafile.length === 0) {
+                setStatus("No file selected.", "err"); return;
+            }
+            document.getElementById("otafile").disabled   = true;
+            document.getElementById("upload").disabled    = true;
+            document.getElementById("progressWrap").classList.add("active");
+            setStatus("Uploading firmware...", "");
 
             var file = otafile[0];
-            var xhr = new XMLHttpRequest();
+            var xhr  = new XMLHttpRequest();
+
             xhr.onreadystatechange = function () {
                 if (xhr.readyState === 4) {
                     if (xhr.status === 200) {
-                        document.open();
-                        document.write(xhr.responseText);
-                        document.close();
+                        setStatus("Upload complete! Rebooting&hellip;", "ok");
+                        setProgress(100);
+                        setTimeout(() => {
+                            document.open(); document.write(xhr.responseText); document.close();
+                        }, 1200);
                     } else {
-                        alert(xhr.status + " Error!\n" + xhr.responseText);
+                        setStatus("Error " + xhr.status + ": " + xhr.responseText, "err");
                         location.reload();
                     }
                 }
             };
+
             xhr.upload.onprogress = function (e) {
-                document.getElementById("progress").textContent =
-                    "Progress: " + ((e.loaded / e.total) * 100).toFixed(0) + "%";
+                if (e.lengthComputable) {
+                    var pct = Math.round(e.loaded / e.total * 100);
+                    setProgress(pct);
+                    setStatus("Uploading&hellip; " + pct + "%", "");
+                }
             };
+
             xhr.open("POST", "/update", true);
             xhr.send(file);
         }
+
+        function setProgress(pct) {
+            document.getElementById("progressFill").style.width = pct + "%";
+            document.getElementById("progressPct").textContent  = pct + "%";
+        }
+
+        function setStatus(msg, cls) {
+            var el = document.getElementById("statusMsg");
+            el.textContent = msg;
+            el.className   = cls;
+        }
     </script>
 </head>
-
 <body>
-    <h1>OTA Firmware Update</h1>
-    <label for="otafile">Firmware file:</label>
-    <input type="file" id="otafile" />
-    <br><br>
-    <button id="upload" onclick="startUpload()">Upload</button>
-    <div id="progress"></div>
-</body>
+<div class="container">
+    <div class="ota-header">
+        <span class="ota-icon">[ESP]</span>
+        <h1>OTA FIRMWARE UPDATE</h1>
+        <div class="subtitle">ESP32 PP // FLASH OVER-THE-AIR</div>
+    </div>
 
+    <div class="panel">
+        <div class="panel-body">
+            <div class="drop-zone" id="dropZone">
+                <input type="file" id="otafile" onchange="updateFileDisplay(this)" />
+                <span class="drop-icon">[BIN]</span>
+                <div class="drop-label">
+                    <strong>SELECT FIRMWARE FILE</strong>
+                    .bin or .tar
+                </div>
+                <div class="file-name" id="fileName"></div>
+            </div>
+
+            <button class="upload-btn" id="upload" onclick="startUpload()">[UP] FLASH FIRMWARE</button>
+
+            <div class="progress-wrap" id="progressWrap">
+                <div class="progress-label">
+                    <span>UPLOAD PROGRESS</span>
+                    <span class="pct" id="progressPct">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+
+            <div id="statusMsg"></div>
+        </div>
+    </div>
+
+    <div class="warn-box">
+        [!] Do not disconnect power during flashing. The device will reboot automatically after a successful update.
+    </div>
+
+    <div class="back-wrap">
+        <a href="/setup.html" class="back-link">&larr; BACK TO SETUP</a>
+    </div>
+</div>
+</body>
 </html>

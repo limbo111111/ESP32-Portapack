@@ -1,1265 +1,1306 @@
 <!DOCTYPE HTML>
 <html>
-
 <head>
     <title>ESP32PP v0.33</title>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --bg:       #080b10;
+            --surface:  #0d1117;
+            --panel:    #111820;
+            --border:   #1e2d3d;
+            --border-glow: #1a3a4a;
+            --cyan:     #00e5ff;
+            --cyan-dim: #007a8a;
+            --purple:   #a855f7;
+            --purple-dim:#4a1f7a;
+            --red:      #ff2d55;
+            --red-dim:  #7a1228;
+            --green:    #39ff14;
+            --green-dim:#1a5c08;
+            --text:     #c8d8e8;
+            --text-dim: #556070;
+            --mono:     'Share Tech Mono', monospace;
+            --ui:       'Rajdhani', sans-serif;
         }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #121212;
-            color: #e0e0e0;
-            padding: 15px;
-            line-height: 1.6;
+            font-family: var(--ui);
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image:
+                radial-gradient(ellipse 80% 40% at 50% 0%, rgba(0,229,255,0.04) 0%, transparent 60%),
+                repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0,229,255,0.025) 40px),
+                repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0,229,255,0.015) 40px);
         }
 
-        pre {
-            background-color: #2e2e2e;
-            padding: 15px;
-            border-radius: 8px;
-            overflow-x: auto;
-            font-size: 0.9rem;
-            border: 1px solid #333;
+        /* &#9472;&#9472; SCANLINE OVERLAY &#9472;&#9472; */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                to bottom,
+                transparent 0px, transparent 2px,
+                rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 4px
+            );
+            pointer-events: none;
+            z-index: 9999;
         }
 
+        /* &#9472;&#9472; CORNER BRACKETS &#9472;&#9472; */
+        .bracket {
+            position: relative;
+        }
+        .bracket::before, .bracket::after {
+            content: '';
+            position: absolute;
+            width: 12px; height: 12px;
+            border-color: var(--cyan);
+            border-style: solid;
+            opacity: 0.6;
+        }
+        .bracket::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+        .bracket::after  { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+
+        /* &#9472;&#9472; HEADER &#9472;&#9472; */
         header {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            padding: 20px;
-            background-color: #1e1e1e;
-            border-radius: 16px;
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
-            border: 1px solid #333;
+            justify-content: space-between;
+            padding: 14px 24px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            gap: 16px;
+        }
+        header::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--cyan), var(--purple), transparent);
+            opacity: 0.5;
         }
 
-        header h1 {
-            font-size: 1.6rem;
-            color: #bb86fc;
-            margin: 0;
-        }
-
-        .status {
+        .header-logo {
             display: flex;
-            gap: 15px;
-            font-size: 0.9rem;
+            align-items: center;
+            gap: 12px;
+        }
+        .header-logo .logo-icon {
+            width: 36px; height: 36px;
+            border: 2px solid var(--cyan);
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem;
+            color: var(--cyan);
+            position: relative;
+            animation: pulse-border 3s ease-in-out infinite;
+        }
+        @keyframes pulse-border {
+            0%, 100% { box-shadow: 0 0 6px rgba(0,229,255,0.3); }
+            50%       { box-shadow: 0 0 16px rgba(0,229,255,0.7); }
+        }
+        .header-logo h1 {
+            font-family: var(--mono);
+            font-size: 1.1rem;
+            color: var(--cyan);
+            letter-spacing: 0.1em;
+            text-shadow: 0 0 12px rgba(0,229,255,0.5);
+        }
+        .header-logo .version {
+            font-family: var(--mono);
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            letter-spacing: 0.05em;
         }
 
-        .status div {
-            padding: 5px 12px;
-            border-radius: 15px;
-            background-color: #333;
-            color: #bbb;
-            font-weight: 500;
+        .status-bar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .status-pill {
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            padding: 4px 10px;
+            border-radius: 3px;
+            border: 1px solid var(--border);
+            background: rgba(0,0,0,0.4);
+            color: var(--text-dim);
+            letter-spacing: 0.05em;
             transition: all 0.3s ease;
+            position: relative;
         }
-
-        .status div.connected {
-            background-color: rgba(3, 218, 198, 0.2);
-            color: #03dac6;
+        .status-pill::before {
+            content: '\25CF';
+            margin-right: 5px;
+            font-size: 0.5rem;
+            opacity: 0.5;
         }
-
-        .status div.disconnected {
-            background-color: rgba(239, 76, 83, 0.2);
-            color: #ef4c53;
+        .status-pill.connected {
+            border-color: var(--cyan-dim);
+            color: var(--cyan);
+            background: rgba(0,229,255,0.06);
         }
+        .status-pill.connected::before { color: var(--cyan); opacity: 1; animation: blink 1.5s step-end infinite; }
+        .status-pill.disconnected {
+            border-color: var(--red-dim);
+            color: var(--red);
+            background: rgba(255,45,85,0.06);
+        }
+        .status-pill.disconnected::before { color: var(--red); opacity: 1; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
 
-        header .setupicon a {
-            font-size: 1.8rem;
-            color: #03dac6;
+        .setup-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px; height: 36px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-dim);
             text-decoration: none;
-            display: inline-block;
-            transition: transform 0.3s ease, color 0.3s ease;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            background: rgba(0,0,0,0.3);
+        }
+        .setup-link:hover {
+            border-color: var(--cyan-dim);
+            color: var(--cyan);
+            background: rgba(0,229,255,0.08);
+            transform: rotate(60deg);
         }
 
-        header .setupicon a:hover {
-            color: #018786;
-            transform: rotate(45deg);
-        }
-
-        h1,
-        h2 {
-            font-weight: bold;
-        }
-
+        /* &#9472;&#9472; MAIN LAYOUT &#9472;&#9472; */
         main {
             display: flex;
             flex-direction: column;
-            gap: 24px;
-            margin-top: 24px;
-            max-width: 1200px;
-            margin-left: auto;
-            margin-right: auto;
+            gap: 16px;
+            padding: 20px;
+            max-width: 1280px;
+            margin: 0 auto;
         }
 
+        /* &#9472;&#9472; PANEL &#9472;&#9472; */
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--cyan-dim), transparent);
+            opacity: 0.6;
+        }
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(0,0,0,0.3);
+        }
+        .panel-title {
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            color: var(--cyan);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+        .panel-title::before { content: '// '; color: var(--text-dim); }
+        .panel-body { padding: 16px; }
+
+        /* &#9472;&#9472; MAIN SCREEN ROW &#9472;&#9472; */
         #mainscreen {
             display: flex;
             flex-wrap: wrap;
-            gap: 24px;
+            gap: 16px;
         }
 
-        .devremote {
+        /* &#9472;&#9472; SCREEN PANEL &#9472;&#9472; */
+        .screen-panel {
+            flex: 0 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .screen-wrap {
+            position: relative;
+            display: inline-block;
+        }
+        .screen-wrap::before, .screen-wrap::after {
+            content: '';
+            position: absolute;
+            width: 16px; height: 16px;
+            border-color: var(--cyan);
+            border-style: solid;
+            opacity: 0.7;
+            z-index: 1;
+        }
+        .screen-wrap::before { top: -2px; left: -2px; border-width: 2px 0 0 2px; }
+        .screen-wrap::after  { bottom: -2px; right: -2px; border-width: 0 2px 2px 0; }
+        #screen {
+            display: block;
+            border: 1px solid var(--border-glow);
+            border-radius: 2px;
+            background: #000;
+            box-shadow: 0 0 30px rgba(0,229,255,0.08), inset 0 0 20px rgba(0,0,0,0.5);
+        }
+        .screen-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .chk-label {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            cursor: pointer;
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            user-select: none;
+        }
+        .chk-label input[type="checkbox"] { accent-color: var(--cyan); width: 14px; height: 14px; }
+
+        /* &#9472;&#9472; REMOTE CONTROL &#9472;&#9472; */
+        .remote-panel {
             flex: 1;
+            min-width: 220px;
+        }
+        .d-pad {
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            gap: 15px;
-            background-color: #1e1e1e;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
-            border: 1px solid #333;
-            min-width: 100%;
+            gap: 4px;
         }
-
-        .screen-container {
-            text-align: center;
-            flex: 2;
-            padding: 20px;
-            background-color: #1e1e1e;
-            border-radius: 16px;
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
-            border: 1px solid #333;
-            min-width: 100%;
-        }
-
-        @media (min-width: 768px) {
-            .devremote {
-                min-width: 350px;
-            }
-            .screen-container {
-                min-width: 300px;
-            }
-        }
-
-        .screen-options {
-            margin-top: 15px;
+        .d-row {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
+            gap: 4px;
         }
 
-        #screen {
-            border: 2px solid #333;
-            border-radius: 8px;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
-            background-color: #000;
-        }
-
-        .btnControl {
-            border-radius: 12px;
-            text-align: center;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 0;
-            margin: 6px;
-            width: 70px;
-            height: 70px;
-            color: #e0e0e0;
-            background-color: #2e2e2e;
-            border: 1px solid #444;
+        .btn-ctrl {
+            width: 64px; height: 64px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: rgba(0,0,0,0.5);
+            color: var(--text);
             cursor: pointer;
-            font-size: 1.5rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
-            transition: transform 0.1s ease, background-color 0.2s ease, border-color 0.2s ease;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.3rem;
+            transition: all 0.12s ease;
+            position: relative;
             -webkit-tap-highlight-color: transparent;
+            overflow: hidden;
         }
-
-        .btnControl:not(:disabled):active {
-            transform: scale(0.9);
-            background-color: #444;
+        .btn-ctrl::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(255,255,255,0.08), transparent 70%);
+            opacity: 0;
+            transition: opacity 0.1s;
         }
+        .btn-ctrl:not(:disabled):active::after { opacity: 1; }
+        .btn-ctrl:not(:disabled):active { transform: scale(0.88); }
+        .btn-ctrl.empty { visibility: hidden; }
 
-        .btnLine {
-            display: flex;
-            justify-content: center;
-            align-items: center;
+        .btn-ctrl.cyan-btn {
+            border-color: rgba(0,229,255,0.3);
+            background: rgba(0,229,255,0.06);
+            color: var(--cyan);
         }
-
-        .btnControl.empty {
-            visibility: hidden;
+        .btn-ctrl.cyan-btn:not(:disabled):hover {
+            border-color: rgba(0,229,255,0.6);
+            background: rgba(0,229,255,0.14);
+            box-shadow: 0 0 12px rgba(0,229,255,0.2);
         }
-
-        button:disabled {
-            background-color: #3a3a3a !important;
-            color: #7a7a7a !important;
-            cursor: not-allowed;
+        .btn-ctrl.purple-btn {
+            border-color: rgba(168,85,247,0.35);
+            background: rgba(168,85,247,0.08);
+            color: var(--purple);
+            font-size: 1.5rem;
+        }
+        .btn-ctrl.purple-btn:not(:disabled):hover {
+            border-color: rgba(168,85,247,0.6);
+            background: rgba(168,85,247,0.15);
+            box-shadow: 0 0 12px rgba(168,85,247,0.25);
+        }
+        .btn-ctrl.red-btn {
+            border-color: rgba(255,45,85,0.35);
+            background: rgba(255,45,85,0.08);
+            color: var(--red);
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            border-radius: 20px;
+        }
+        .btn-ctrl.red-btn:not(:disabled):hover {
+            border-color: rgba(255,45,85,0.6);
+            background: rgba(255,45,85,0.15);
+            box-shadow: 0 0 12px rgba(255,45,85,0.25);
+        }
+        .btn-ctrl:disabled {
+            opacity: 0.3 !important;
+            cursor: not-allowed !important;
             box-shadow: none !important;
             transform: none !important;
         }
-
-        .greenbtn {
-            background-color: rgba(3, 218, 198, 0.15);
-            color: #03dac6;
-            border-color: rgba(3, 218, 198, 0.3);
-        }
-
-        .greenbtn:not(:disabled):hover {
-            background-color: rgba(3, 218, 198, 0.3);
-        }
-
-        .redbtn {
-            background-color: rgba(239, 76, 83, 0.15);
-            color: #ef4c53;
-            border-color: rgba(239, 76, 83, 0.3);
-            font-size: 1.1rem;
-            font-weight: bold;
-            border-radius: 20px;
-        }
-
-        .redbtn:not(:disabled):hover {
-            background-color: rgba(239, 76, 83, 0.3);
-        }
-
-        .bluebtn {
-            background-color: rgba(187, 134, 252, 0.15);
-            color: #bb86fc;
-            border-color: rgba(187, 134, 252, 0.3);
-            font-size: 1.8rem;
-        }
-
-        .bluebtn:not(:disabled):hover {
-            background-color: rgba(187, 134, 252, 0.3);
-        }
-
-
-        #espAppContainer,
-        #devdatas,
-        #wsDisplay,
-        #manualcommand,
-        #filemanager {
+        .btn-row-special {
             display: flex;
-            flex-direction: column;
-            background-color: #1e1e1e;
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
-            gap: 20px;
+            gap: 8px;
+            margin-top: 12px;
+            justify-content: center;
         }
 
-        .dev-data-rows {
-            display: flex;
-            justify-content: space-around;
-            flex-wrap: wrap;
-            gap: 15px;
-            background-color: #1e1e1e;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
-            border: 1px solid #333;
+        /* &#9472;&#9472; SENSOR DATA &#9472;&#9472; */
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+        }
+        .sensor-card {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 10px 14px;
+            position: relative;
+            overflow: hidden;
+        }
+        .sensor-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 2px; height: 100%;
+            background: var(--cyan-dim);
+        }
+        .sensor-label {
+            font-family: var(--mono);
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            margin-bottom: 4px;
+        }
+        .sensor-val {
+            font-family: var(--mono);
+            font-size: 0.9rem;
+            color: var(--cyan);
         }
 
-        #btnManualSend,
-        #btnOpenFlmgr,
-        #bntRefresh {
-            background-color: #333;
-            color: #03dac6;
-            padding: 10px 15px;
-            border: 1px solid #03dac6;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: bold;
+        /* &#9472;&#9472; ACTION BUTTONS &#9472;&#9472; */
+        .action-btn {
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            padding: 8px 16px;
+            border-radius: 3px;
+            border: 1px solid var(--cyan-dim);
+            background: rgba(0,229,255,0.06);
+            color: var(--cyan);
             cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-            transition: background-color 0.2s ease, transform 0.1s;
+            letter-spacing: 0.08em;
+            transition: all 0.2s ease;
         }
-
-        #btnManualSend:hover,
-        #btnOpenFlmgr:hover,
-        #bntRefresh:hover {
-            background-color: rgba(3, 218, 198, 0.15);
+        .action-btn:hover {
+            background: rgba(0,229,255,0.14);
+            box-shadow: 0 0 10px rgba(0,229,255,0.2);
         }
-
-        #btnManualSend:active,
-        #btnOpenFlmgr:active,
-        #bntRefresh:active {
-            transform: scale(0.95);
-        }
-
-        #btnManualSend:disabled,
-        #btnOpenFlmgr:disabled,
-        #bntRefresh:disabled,
-        #btnGps:disabled {
-            background-color: #3a3a3a;
-            color: #7a7a7a;
+        .action-btn:active { transform: scale(0.96); }
+        .action-btn:disabled {
+            opacity: 0.3;
             cursor: not-allowed;
         }
-
-        #manualcommand input[type="text"] {
-            padding: 20px;
-            border: 1px solid #03dac6;
-            border-radius: 5px;
-            background-color: #121212;
-            color: white;
-            width: 80%;
+        .action-btn.primary {
+            background: var(--cyan);
+            color: #000;
+            font-weight: 700;
+            border-color: var(--cyan);
+        }
+        .action-btn.primary:hover { background: #33ecff; }
+        .action-btn.danger {
+            border-color: var(--red-dim);
+            background: rgba(255,45,85,0.06);
+            color: var(--red);
+        }
+        .action-btn.danger:hover {
+            background: rgba(255,45,85,0.14);
+            box-shadow: 0 0 10px rgba(255,45,85,0.2);
         }
 
-        #manualcommand input[type="text"]:focus {
-            outline: none;
-            border-color: #018786;
+        /* &#9472;&#9472; MANUAL CMD &#9472;&#9472; */
+        .cmd-row {
+            display: flex;
+            gap: 10px;
         }
-
-        #btnGps {
-            padding: 10px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        #filemanager button {
-            padding: 4px 6px;
+        .cmd-input {
+            flex: 1;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid var(--border);
             border-radius: 3px;
-            cursor: pointer;
-        }
-
-
-        #fileList {
-            min-width: 100%;
-            background-color: #121212;
-            color: #e0e0e0;
-            border: 1px solid #333;
-            border-radius: 6px;
-            padding: 10px;
-            font-family: monospace;
-            font-size: 1rem;
-        }
-
-        #fileList:focus {
+            padding: 10px 14px;
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: 0.85rem;
             outline: none;
-            border-color: #03dac6;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .cmd-input:focus {
+            border-color: var(--cyan-dim);
+            box-shadow: 0 0 8px rgba(0,229,255,0.15);
+        }
+        .cmd-input::placeholder { color: var(--text-dim); }
+
+        #log {
+            background: rgba(0,0,0,0.6);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            padding: 12px;
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            color: #6a9b6a;
+            min-height: 120px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
         }
 
-        input[type="file"] {
-            background-color: #121212;
-            color: #e0e0e0;
-            padding: 10px;
-            border-radius: 6px;
-            border: 1px dashed #555;
+        /* &#9472;&#9472; FILE MANAGER &#9472;&#9472; */
+        #filemanager { display: none; }
+        .filepath-bar {
+            font-family: var(--mono);
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            padding: 6px 0;
+            margin-bottom: 8px;
+        }
+        .filepath-bar span { color: var(--cyan); }
+        #fileList {
             width: 100%;
-            margin: 10px 0;
-            box-sizing: border-box;
+            background: rgba(0,0,0,0.5);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            padding: 6px;
+            font-family: var(--mono);
+            font-size: 0.85rem;
+            outline: none;
+            scrollbar-width: thin;
         }
-
+        #fileList:focus { border-color: var(--cyan-dim); }
+        #fileList option:hover { background: var(--border); }
+        .fman-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+        }
+        input[type="file"] {
+            background: rgba(0,0,0,0.4);
+            color: var(--text-dim);
+            border: 1px dashed var(--border);
+            border-radius: 3px;
+            padding: 8px;
+            width: 100%;
+            font-family: var(--mono);
+            font-size: 0.8rem;
+            cursor: pointer;
+            margin-top: 8px;
+        }
         #fileProgress {
             display: none;
+            width: 100%;
+            height: 4px;
+            margin-top: 8px;
+            accent-color: var(--cyan);
+            border-radius: 2px;
         }
 
+        /* &#9472;&#9472; WSD &#9472;&#9472; */
         #wsd_title {
             display: inline;
+            font-family: var(--mono);
+        }
+        #wsd_maintext {
+            font-family: var(--mono);
+            font-size: 0.85rem;
+            color: var(--text);
         }
 
-        #wsDisplay {
-            min-height: 252px;
+        /* &#9472;&#9472; ESP APP &#9472;&#9472; */
+        .app-btns {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
         }
-
-        #espAppStartList button,
-        #btnEspAppStop,
-        .espAppCnt button {
-            background-color: #333;
-            color: white;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
+        .app-btns button {
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            padding: 8px 14px;
+            border-radius: 3px;
+            background: rgba(0,0,0,0.4);
+            color: var(--text);
+            border: 1px solid var(--border);
             cursor: pointer;
-            margin: 5px 5px 5px 0;
-            transition: background-color 0.2s, transform 0.1s;
+            transition: all 0.2s;
+            letter-spacing: 0.05em;
         }
+        .app-btns button:hover { border-color: var(--cyan-dim); color: var(--cyan); background: rgba(0,229,255,0.06); }
 
-        #espAppStartList button:hover,
-        #btnEspAppStop:hover,
-        .espAppCnt button:hover {
-            background-color: #444;
+        .espAppCnt {
+            margin-top: 12px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 14px;
         }
-
-        #espAppStartList button:active,
-        .espAppCnt button:active {
-            transform: scale(0.95);
+        .espAppCnt h3 {
+            font-family: var(--mono);
+            font-size: 0.8rem;
+            color: var(--cyan);
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+            letter-spacing: 0.1em;
         }
+        .espAppCnt button {
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            padding: 8px 14px;
+            border-radius: 3px;
+            background: rgba(0,0,0,0.4);
+            color: var(--text);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            margin: 3px;
+            transition: all 0.2s;
+        }
+        .espAppCnt button:hover { border-color: var(--cyan-dim); color: var(--cyan); }
 
         #btnEspAppStop {
-            background-color: #cf6679;
-            color: #000;
-            font-weight: bold;
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            padding: 8px 18px;
+            border-radius: 3px;
+            background: rgba(255,45,85,0.1);
+            color: var(--red);
+            border: 1px solid var(--red-dim);
+            cursor: pointer;
+            letter-spacing: 0.1em;
+            font-weight: 700;
+            transition: all 0.2s;
         }
+        #btnEspAppStop:hover { background: rgba(255,45,85,0.2); box-shadow: 0 0 10px rgba(255,45,85,0.3); }
 
-        #btnEspAppStop:hover {
-            background-color: #b00020;
-            color: #fff;
-        }
-
-        section {
-            background-color: #1e1e1e;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
-            border: 1px solid #333;
-        }
-
-        section h2 {
-            color: #03dac6;
-            margin-bottom: 15px;
-            border-bottom: 1px solid #333;
-            padding-bottom: 5px;
-            text-align: left;
-        }
-
-        input[type="text"], input[type="file"], select {
-            background-color: #121212;
-            color: #e0e0e0;
-            border: 1px solid #03dac6;
+        /* &#9472;&#9472; GPS DEBUG &#9472;&#9472; */
+        #devGPSDebugRes {
+            background: rgba(0,0,0,0.5);
             padding: 10px;
-            border-radius: 6px;
-            width: 100%;
-            margin-bottom: 10px;
+            border-radius: 3px;
+            font-family: var(--mono);
+            font-size: 0.78rem;
+            color: #7ac97a;
+            border: 1px solid var(--border);
+            margin-top: 8px;
         }
 
-        input[type="text"]:focus {
-            outline: none;
-            box-shadow: 0 0 5px rgba(3, 218, 198, 0.5);
+        /* &#9472;&#9472; TOGGLE &#9472;&#9472; */
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* &#9472;&#9472; MOTION ALERT &#9472;&#9472; */
+        .motion-alert {
+            background: rgba(255,45,85,0.15);
+            color: var(--red);
+            padding: 18px;
+            text-align: center;
+            font-size: 1.3rem;
+            font-weight: 700;
+            border-radius: 4px;
+            border: 1px solid rgba(255,45,85,0.4);
+            font-family: var(--mono);
+            animation: motion-pulse 0.8s ease-in-out infinite alternate;
+        }
+        @keyframes motion-pulse {
+            from { box-shadow: 0 0 10px rgba(255,45,85,0.3); }
+            to   { box-shadow: 0 0 30px rgba(255,45,85,0.7); }
+        }
+        .scanning-msg {
+            background: rgba(0,0,0,0.4);
+            color: var(--text-dim);
+            padding: 14px;
+            text-align: center;
+            border-radius: 4px;
+            font-family: var(--mono);
+            font-size: 0.85rem;
+        }
+
+        /* &#9472;&#9472; SCROLLBAR &#9472;&#9472; */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        /* &#9472;&#9472; RESPONSIVE &#9472;&#9472; */
+        @media (min-width: 768px) {
+            .screen-panel { min-width: 250px; }
+            .remote-panel { flex: 1; }
         }
     </style>
 </head>
-
 <body>
-    <header>
-        <h1>ESP32 PP v0.33</h1>
-        <div class="status">
-            <div id="connState">WS Connecting...</div>
-            <div id="connStatePP">PP not connected to ESP</div>
+
+<header>
+    <div class="header-logo">
+        <div class="logo-icon">ESP</div>
+        <div>
+            <h1>ESP32&nbsp;PP</h1>
+            <div class="version">v0.33 // SYSTEM ONLINE</div>
         </div>
-        <div class="setupicon"><a href="/setup.html">⚙️</a></div>
-    </header>
-    <main>
-        <section id="mainscreen">
-            <div class="screen-container">
-                <canvas id="screen" height="320" width="240">No gui support</canvas>
-                <div class="screen-options">
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                        <input type="checkbox" id="screenRefresh" name="autoScreenRefresh" checked style="width: 18px; height: 18px; accent-color: #03dac6;" />
-                        Auto refresh
-                    </label>
-                    <button id="bntRefresh" class="action-btn uicontrols" onclick="refreshScreen()">Refresh</button>
+    </div>
+    <div class="status-bar">
+        <div class="status-pill" id="connState">WS CONNECTING</div>
+        <div class="status-pill" id="connStatePP">PP OFFLINE</div>
+    </div>
+    <a href="/setup.html" class="setup-link" title="Setup">&#9881;</a>
+</header>
+
+<main>
+
+    <!-- SCREEN + REMOTE -->
+    <div class="panel">
+        <div class="panel-header">
+            <span class="panel-title">Device Interface</span>
+        </div>
+        <div class="panel-body">
+            <div id="mainscreen">
+                <!-- Screen -->
+                <div class="screen-panel">
+                    <div class="screen-wrap">
+                        <canvas id="screen" height="320" width="240">No GUI support</canvas>
+                    </div>
+                    <div class="screen-controls">
+                        <label class="chk-label">
+                            <input type="checkbox" id="screenRefresh" checked />
+                            AUTO REFRESH
+                        </label>
+                        <button id="bntRefresh" class="action-btn uicontrols" onclick="refreshScreen()">REFRESH</button>
+                    </div>
+                </div>
+
+                <!-- Remote -->
+                <div class="remote-panel">
+                    <div class="d-pad">
+                        <div class="d-row">
+                            <div class="btn-ctrl empty"></div>
+                            <button id="btnCtrUp" class="btn-ctrl cyan-btn uicontrols" onclick="sendButton(4)">&#9650;</button>
+                            <div class="btn-ctrl empty"></div>
+                        </div>
+                        <div class="d-row">
+                            <button id="btnCtrLeft"  class="btn-ctrl cyan-btn uicontrols" onclick="sendButton(2)">&#9664;</button>
+                            <button id="btnCtrEnter" class="btn-ctrl purple-btn uicontrols" onclick="sendButton(5)">&#9673;</button>
+                            <button id="btnCtrRight" class="btn-ctrl cyan-btn uicontrols" onclick="sendButton(1)">&#9654;</button>
+                        </div>
+                        <div class="d-row">
+                            <button id="btnCtrRotLeft"  class="btn-ctrl cyan-btn uicontrols" onclick="sendButton(8)">&#8634;</button>
+                            <button id="btnCtrDown"     class="btn-ctrl cyan-btn uicontrols" onclick="sendButton(3)">&#9660;</button>
+                            <button id="btnCtrRotRight" class="btn-ctrl cyan-btn uicontrols" onclick="sendButton(7)">&#8635;</button>
+                        </div>
+                        <div class="btn-row-special">
+                            <button id="btnCtrDFU" class="btn-ctrl red-btn uicontrols" onclick="sendButton(6)">DFU</button>
+                            <button id="btnCtrRST" class="btn-ctrl red-btn uicontrols" onclick="sendReboot()">RESET</button>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="devremote">
-                <div class="btnLine">
-                    <div class="btnControl empty"></div>
-                    <button id="btnCtrUp" class="btnControl greenbtn uicontrols" onclick="sendButton(4)">⬆️</button>
-                    <div class="btnControl empty"></div>
-                </div>
-                <div class="btnLine">
-                    <button id="btnCtrLeft" class="btnControl greenbtn uicontrols" onclick="sendButton(2)">⬅️</button>
-                    <button id="btnCtrEnter" class="btnControl bluebtn uicontrols" onclick="sendButton(5)">O</button>
-                    <button id="btnCtrRight" class="btnControl greenbtn uicontrols" onclick="sendButton(1)">➡️</button>
-                </div>
-                <div class="btnLine">
-                    <button id="btnCtrRotLeft" class="btnControl greenbtn uicontrols" onclick="sendButton(8)">🔄</button>
-                    <button id="btnCtrDown" class="btnControl greenbtn uicontrols" onclick="sendButton(3)">⬇️</button>
-                    <button id="btnCtrRotRight" class="btnControl greenbtn uicontrols" onclick="sendButton(7)">🔃</button>
-                </div>
-                <div class="btnLine" style="margin-top: 15px;">
-                    <button id="btnCtrDFU" class="btnControl redbtn uicontrols" onclick="sendButton(6)">DFU</button>
-                    <button id="btnCtrRST" class="btnControl redbtn uicontrols" onclick="sendReboot()">RESET</button>
-                </div>
+        </div>
+    </div>
+
+    <!-- FILE MANAGER -->
+    <div class="panel" id="filemanager">
+        <div class="panel-header">
+            <span class="panel-title">File System</span>
+            <button class="action-btn uicontrols" onclick="fileManClose()">[ X ] CLOSE</button>
+        </div>
+        <div class="panel-body">
+            <div class="filepath-bar">PATH: <span id="filePath">/</span></div>
+            <select id="fileList" size="16" ondblclick="fileSelected()"></select>
+            <div class="fman-actions">
+                <button class="action-btn uicontrols" onclick="cwdup()">CD ..</button>
+                <button class="action-btn uicontrols" onclick="ls()">REFRESH</button>
+                <button class="action-btn danger uicontrols" onclick="fileDelete()">DELETE</button>
+                <button class="action-btn uicontrols" onclick="fileDownload()">DOWNLOAD</button>
+                <button class="action-btn danger uicontrols" onclick="fileFlash()">FLASH</button>
             </div>
-        </section>
-        <section id="filemanager" style="display: none;">
-            Path: <span id="filePath">/</span><br />
-            <select id="fileList" size=20>
-            </select>
-            <br />
-            <button class="uicontrols" onclick="cwdup(); return false;">Cd ..</button>
-            <button class="uicontrols" onclick="ls(); return false;">Refresh</button>
-            <button class="uicontrols" onclick="fileDelete(); return false;">Delete</button><br />
-            <input class="uicontrols" type="file" id="fileUpfile" />
-            <button class="uicontrols" onclick="fileUpload(); return false;">Upload</button><br />
-            <button class="uicontrols" onclick="fileDownload(); return false;">Download</button>
-            <button class="uicontrols" onclick="fileFlash(); return false;">Flash</button><br /><br />
-            <button class="uicontrols" onclick="fileManClose(); return false;">Close file manager</button><br />
+            <input type="file" class="uicontrols" id="fileUpfile" />
+            <div class="fman-actions">
+                <button class="action-btn primary uicontrols" onclick="fileUpload()">UPLOAD</button>
+            </div>
             <progress id="fileProgress" value="0" max="100"></progress>
+        </div>
+    </div>
 
-        </section>
-
-        <section id="devdatas">
-            <div class="dev-data-rows">
-                <div id="devTemp">Temp: ?</div>
-                <div id="devGpsLat">Lat: ?</div>
-                <div id="devGpsLon">Lon: ?</div>
-                <div id="devHead">Heading: ?</div>
-                <div id="devGpsSats">Sats: ?</div>
+    <!-- SENSOR DATA -->
+    <div class="panel" id="devdatas">
+        <div class="panel-header">
+            <span class="panel-title">Sensor Telemetry</span>
+        </div>
+        <div class="panel-body" style="display:flex;flex-direction:column;gap:12px;">
+            <div class="sensor-grid">
+                <div class="sensor-card"><div class="sensor-label">Temperature</div><div class="sensor-val" id="devTemp">&mdash;</div></div>
+                <div class="sensor-card"><div class="sensor-label">Latitude</div><div class="sensor-val" id="devGpsLat">&mdash;</div></div>
+                <div class="sensor-card"><div class="sensor-label">Longitude</div><div class="sensor-val" id="devGpsLon">&mdash;</div></div>
+                <div class="sensor-card"><div class="sensor-label">Heading</div><div class="sensor-val" id="devHead">&mdash;</div></div>
+                <div class="sensor-card"><div class="sensor-label">Satellites</div><div class="sensor-val" id="devGpsSats">&mdash;</div></div>
             </div>
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                    <input type="checkbox" id="gpsDebugChk" style="width: 18px; height: 18px; accent-color: #03dac6;" onchange="gpsDebugChkChanged(this)" />
-                    Gps debug
+            <div class="toggle-row">
+                <label class="chk-label">
+                    <input type="checkbox" id="gpsDebugChk" onchange="gpsDebugChkChanged(this)" />
+                    GPS DEBUG
                 </label>
             </div>
-            <div id="devGPSDebugRes" style="display: none; background-color: #2e2e2e; padding: 10px; border-radius: 6px; font-family: monospace;"></div>
-
-            <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <button onclick="getGPSPosition();" id="btnGps" class="uicontrols" title="Get GPS Position">&#128204;</button>
-                <button class="action-btn uicontrols" id="btnOpenFlmgr" onclick="fileManOpen(); return false;">File Manager</button>
+            <div id="devGPSDebugRes" style="display:none;"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button onclick="getGPSPosition();" id="btnGps" class="action-btn uicontrols">[GPS] GET POS</button>
+                <button class="action-btn uicontrols" id="btnOpenFlmgr" onclick="fileManOpen()">[FS] FILE MGR</button>
             </div>
-        </section>
-        <section id="wsDisplay">
-            <h2>WSD-<div id="wsd_title">not loaded yet</div>
-            </h2>
+        </div>
+    </div>
 
+    <!-- WSD -->
+    <div class="panel" id="wsDisplay">
+        <div class="panel-header">
+            <span class="panel-title">WSD &mdash; <span id="wsd_title">not loaded</span></span>
+        </div>
+        <div class="panel-body">
             <div id="wsd_maintext"></div>
-        </section>
-        <section id="espAppContainer">
-            <h2>Esp's App</h2>
-            <div><button id="btnEspAppStop" style="display: none;" onclick="sendMessage('#$##$$$00\r\n')">Stop</button>
-            </div>
-            <div id="espAppStartList" style="display: none;">
-                <button onclick="sendMessage('#$##$$$01\r\n')">📶 Wifi SSID spam</button>
-                <button onclick="sendMessage('#$##$$$04\r\n')">📡 Wifi CSI motion</button>
-                <!-- <button onclick="sendMessage('#$##$$$02\r\n')">Wifi list</button>
-                <button onclick="sendMessage('#$##$$$03\r\n')">Wifi probe sniffer</button> -->
-            </div>
-            <div id="espAppDT1" class="espAppCnt" style="display: none; background-color: #1e1e1e; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5); margin-top: 15px;">
-                <h3 style="color: #03dac6; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 5px;">📶 WiFi Spam</h3>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button onclick="sendMessage('#$$#$$$10\r\n')" style="background-color: #333; color: white; border: 1px solid #555;">⏸️ Standby Mode</button>
-                    <button onclick="sendMessage('#$$#$$$11\r\n')">🎲 Random Mode</button>
-                    <button onclick="sendMessage('#$$#$$$12\r\n')">🎵 Rick Roll Mode</button>
-                    <button onclick="sendMessage('#$$#$$$13\r\n')">😀 Emoji Spam Mode</button>
-                </div>
-            </div>
-            <div id="espAppDT4" class="espAppCnt" style="display: none; background-color: #1e1e1e; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5); margin-top: 15px;">
-                <h3 style="color: #03dac6; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 5px;">📡 WiFi CSI Radar</h3>
-                <p style="color: #bbb; font-size: 0.9rem; margin-bottom: 15px;">Turn WiFi signals into real-time spatial intelligence.</p>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button onclick="sendMessage('#$$#$$$40\r\n')" style="background-color: #333; color: white; border: 1px solid #555;">⏸️ Standby</button>
-                    <button onclick="sendMessage('#$$#$$$41\r\n')" style="background-color: #03dac6; color: black; font-weight: bold; border: none;">🏃 Motion Mode</button>
-                    <button onclick="sendMessage('#$$#$$$42\r\n')" style="background-color: #bb86fc; color: black; font-weight: bold; border: none;">🫁 Breathing Mode</button>
-                </div>
-            </div>
-        </section>
+        </div>
+    </div>
 
-        <section id="manualcommand">
-            <h2>💻 Manual Commands</h2>
-            <div class="input-group" style="display: flex; gap: 10px;">
-                <input type="text" id="manualtxt" placeholder="Enter command..." onkeydown="if(event.key === 'Enter') manualSend()" style="flex: 1;" />
-                <button onclick="manualSend()" id="btnManualSend" class="action-btn uicontrols" style="padding: 10px 20px; background-color: #03dac6; color: black; font-weight: bold; border-radius: 6px; border: none; cursor: pointer;">Send</button>
+    <!-- ESP APP -->
+    <div class="panel" id="espAppContainer">
+        <div class="panel-header">
+            <span class="panel-title">ESP Application</span>
+            <button id="btnEspAppStop" style="display:none;" onclick="sendMessage('#$##$$$00\r\n')">[ STOP ]</button>
+        </div>
+        <div class="panel-body">
+            <div id="espAppStartList" style="display:none;" class="app-btns">
+                <button onclick="sendMessage('#$##$$$01\r\n')">[TX] WiFi SSID Spam</button>
+                <button onclick="sendMessage('#$##$$$04\r\n')">[RX] WiFi CSI Motion</button>
+            </div>
+            <div id="espAppDT1" class="espAppCnt" style="display:none;">
+                <h3>// WiFi SSID Spam</h3>
+                <div class="app-btns">
+                    <button onclick="sendMessage('#$$#$$$10\r\n')">[ ] Standby</button>
+                    <button onclick="sendMessage('#$$#$$$11\r\n')">[?] Random</button>
+                    <button onclick="sendMessage('#$$#$$$12\r\n')">[~] Rick Roll</button>
+                    <button onclick="sendMessage('#$$#$$$13\r\n')">[::] Emoji Spam</button>
+                </div>
+            </div>
+            <div id="espAppDT4" class="espAppCnt" style="display:none;">
+                <h3>// WiFi CSI Radar</h3>
+                <p style="color:var(--text-dim);font-size:0.8rem;font-family:var(--mono);margin-bottom:10px;">Real-time spatial intelligence via WiFi signals.</p>
+                <div class="app-btns">
+                    <button onclick="sendMessage('#$$#$$$40\r\n')">[ ] Standby</button>
+                    <button onclick="sendMessage('#$$#$$$41\r\n')" style="border-color:rgba(0,229,255,0.5);color:var(--cyan);">[>>] Motion Mode</button>
+                    <button onclick="sendMessage('#$$#$$$42\r\n')" style="border-color:rgba(168,85,247,0.5);color:var(--purple);">[ ~ ] Breathing Mode</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MANUAL CMD -->
+    <div class="panel" id="manualcommand">
+        <div class="panel-header">
+            <span class="panel-title">Manual Commands</span>
+        </div>
+        <div class="panel-body" style="display:flex;flex-direction:column;gap:10px;">
+            <div class="cmd-row">
+                <input type="text" class="cmd-input" id="manualtxt" placeholder="Enter command..." onkeydown="if(event.key==='Enter') manualSend()" />
+                <button onclick="manualSend()" id="btnManualSend" class="action-btn primary uicontrols">SEND</button>
             </div>
             <pre id="log"></pre>
-        </section>
-    </main>
-    <script>
-        const PROMPT = "ch> ";
-        var respWaiting = PROMPT;
-        var respCallBack = null;
-        var enableSend = false; //keep track if sending is allowed or not
-        var gateway = `ws://${window.location.hostname}/ws`;
-        if (window.location.protocol === "file:") gateway = `ws://192.168.4.1/ws`;
-        var websocket;
-        var respLines = []; //resp lines list.
-        var respLinestp = []; //resp lines list to parse
-        var respLastLine = ""; //last line of resp
-        var gpsQueryInProgress = false;
-        var receivedChunks = []; //for file down
-        var expectedFileSize = 0; //file size
-        var resolveSt = null; //if wait for the resolve during send
-        var screensupdState = 0; //0-not that cmd, 1 = begin, 2 = second line
-        var gotbytes = 0; //for file download progress
-        window.addEventListener('load', onLoad);
+        </div>
+    </div>
 
-        function enadisaControls(ena) {
-            enableSend = ena;
-            var elementsToDisable = document.querySelectorAll('.uicontrols');
-            elementsToDisable.forEach(function (element) {
-                element.disabled = !ena;
-            });
-        }
+</main>
 
-        function setProgress(prog) {
-            var pb = document.getElementById("fileProgress");
-            if (prog < 0) //hide
-            {
-                pb.style.display = "none";
-            }
-            else {
-                pb.style.display = "block";
-                pb.value = prog;
-            }
-        }
+<script>
+    const PROMPT = "ch> ";
+    var respWaiting = PROMPT;
+    var respCallBack = null;
+    var enableSend = false;
+    var gateway = `ws://${window.location.hostname}/ws`;
+    if (window.location.protocol === "file:") gateway = `ws://192.168.4.1/ws`;
+    var websocket;
+    var respLines = [];
+    var respLinestp = [];
+    var respLastLine = "";
+    var gpsQueryInProgress = false;
+    var receivedChunks = [];
+    var expectedFileSize = 0;
+    var resolveSt = null;
+    var screensupdState = 0;
+    var gotbytes = 0;
+    window.addEventListener('load', onLoad);
 
-        function log(data) {
-            if (!data.endsWith("\r\n")) { data += "\r\n"; }
-            console.log(data);
-            var logc = document.getElementById("log")
-            logc.innerHTML = data + logc.innerHTML;
-            if (logc.innerHTML.length > 1024) {
-                logc.innerHTML = logc.innerHTML.substring(0, 1024);
-            }
-        }
+    function enadisaControls(ena) {
+        enableSend = ena;
+        document.querySelectorAll('.uicontrols').forEach(el => el.disabled = !ena);
+    }
 
-        //esp app specific functions
-        function refreshUIForCurrentApp(app) {
-            document.getElementById("btnEspAppStop").style.display = (app == 0) ? "none" : "inline-block";
-            document.getElementById("espAppStartList").style.display = (app == 0) ? "block" : "none";
-            document.getElementById("espAppDT1").style.display = (app == 1) ? "block" : "none";
-            document.getElementById("espAppDT4").style.display = (app == 4) ? "block" : "none";
-        }
+    function setProgress(prog) {
+        var pb = document.getElementById("fileProgress");
+        if (prog < 0) { pb.style.display = "none"; }
+        else { pb.style.display = "block"; pb.value = prog; }
+    }
 
+    function log(data) {
+        if (!data.endsWith("\r\n")) data += "\r\n";
+        console.log(data);
+        var logc = document.getElementById("log");
+        logc.innerHTML = data + logc.innerHTML;
+        if (logc.innerHTML.length > 1024) logc.innerHTML = logc.innerHTML.substring(0, 1024);
+    }
 
-        //others
-        function initWebSocket() {
-            log("WS Connecting...");
-            websocket = new WebSocket(gateway);
-            websocket.onopen = onOpen;
-            websocket.onclose = onClose;
-            websocket.onmessage = onMessage;
-            websocket.error = onError;
-        }
+    function refreshUIForCurrentApp(app) {
+        document.getElementById("btnEspAppStop").style.display   = (app == 0) ? "none" : "inline-block";
+        document.getElementById("espAppStartList").style.display = (app == 0) ? "flex" : "none";
+        document.getElementById("espAppDT1").style.display       = (app == 1) ? "block" : "none";
+        document.getElementById("espAppDT4").style.display       = (app == 4) ? "block" : "none";
+    }
 
-        function onError(event) {
-            log("WS error");
-        }
+    function initWebSocket() {
+        log("WS Connecting...");
+        websocket = new WebSocket(gateway);
+        websocket.onopen    = onOpen;
+        websocket.onclose   = onClose;
+        websocket.onmessage = onMessage;
+        websocket.error     = onError;
+    }
 
-        function onOpen(event) {
-            log("WS Connected");
-            var connState = document.getElementById("connState");
-            connState.innerHTML = "WS Connected";
-            connState.className = "connected";
-            sendMessage("#$##$$#GETINITDATA\r\n");
-        }
+    function onError(event) { log("WS error"); }
 
-        function onClose(event) {
-            enadisaControls(false);
-            log("WS Closed");
-            var connState = document.getElementById("connState");
-            connState.innerHTML = "WS Reconnecting...";
-            connState.className = "disconnected";
-            setTimeout(initWebSocket, 1000);
-        }
-        function gotSensor(data) {
-            document.getElementById("devTemp").innerHTML = "Temp: " + data.env.temp + " &#8451;";
-            if (data.gps.lat != 200 && data.gps.lon != 200) {
-                document.getElementById("devGpsLat").innerHTML = "Lat: " + data.gps.lat;
-                document.getElementById("devGpsLon").innerHTML = "Lon: " + data.gps.lon;
-            }
-            else {
-                document.getElementById("devGpsLat").innerHTML = "Lat: ? ";
-                document.getElementById("devGpsLon").innerHTML = "Lon: ? ";
-            }
-            var headstr = "Heading: " + data.ori.head + "&#176;";
-            if (data.ori.tilt < 400) headstr += " Tilt: " + data.ori.tilt + "&#176;";
-            document.getElementById("devHead").innerHTML = headstr;
-            document.getElementById("devGpsSats").innerHTML = "Sats: " + data.gps.siu + "/" + data.gps.siv;
-        }
+    function onOpen(event) {
+        log("WS Connected");
+        var cs = document.getElementById("connState");
+        cs.innerHTML = "WS ONLINE"; cs.className = "status-pill connected";
+        sendMessage("#$##$$#GETINITDATA\r\n");
+    }
 
-        //when all the required data in
-        function onDataArrived() {
-            log("Command executed");
-            enadisaControls(true);
-            try {
-                respLinestp = respLines;
-                respLines = [];
-                var tmpCb = respCallBack;
-                respCallBack = null;
-                if (tmpCb) tmpCb();
-                if (resolveSt != null) {
-                    var tmp = resolveSt;
-                    resolveSt = null;
-                    tmp();
-                }
-            } catch (err) { console.log(err); }
-        }
+    function onClose(event) {
+        enadisaControls(false);
+        log("WS Closed");
+        var cs = document.getElementById("connState");
+        cs.innerHTML = "WS RECONNECT&hellip;"; cs.className = "status-pill disconnected";
+        setTimeout(initWebSocket, 1000);
+    }
 
-        function escapeHTML(unsafe) {
-            return unsafe.replace(
-                /[\u0000-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u00FF]/g,
-                c => '&#' + ('000' + c.charCodeAt(0)).slice(-4) + ';'
-            )
+    function gotSensor(data) {
+        document.getElementById("devTemp").innerHTML = data.env.temp + " &deg;C";
+        if (data.gps.lat != 200 && data.gps.lon != 200) {
+            document.getElementById("devGpsLat").innerHTML = data.gps.lat;
+            document.getElementById("devGpsLon").innerHTML = data.gps.lon;
+        } else {
+            document.getElementById("devGpsLat").innerHTML = "&mdash;";
+            document.getElementById("devGpsLon").innerHTML = "&mdash;";
         }
-        //one line received
-        function onMessageLine(msg) {
-            try {
-                console.log(msg);
-                if (msg.startsWith("#$##$$#")) {
-                    if (msg == "#$##$$#I2C_DC\r\n") {
-                        log("PP Disconnected");
-                        enadisaControls(false);
-                        const canvas = document.getElementById("screen");
-                        const ctx = canvas.getContext("2d");
-                        ctx.fillStyle = "#000";
-                        ctx.fillRect(0, 0, 240, 320);
-                        var connStatePP = document.getElementById("connStatePP");
-                        connStatePP.innerHTML = "PP Disconnected";
-                        connStatePP.className = "disconnected";
-                        return false;
-                    }
-                    if (msg == "#$##$$#I2C_CC\r\n") {
-                        log("PP Connected");
-                        enadisaControls(true);
-                        fileManClose();
-                        var connStatePP = document.getElementById("connStatePP");
-                        connStatePP.innerHTML = "PP Connected";
-                        connStatePP.className = "connected";
-                        autoScreenRefresh();
-                        return false;
-                    }
-                    if (msg.startsWith("#$##$$#GOTSENS")) {
-                        var jsStr = msg.substring(14);
-                        var gpsdata = JSON.parse(jsStr);
-                        gotSensor(gpsdata);
-                        return false;
-                    }
-                    if (msg.startsWith("#$##$$#GOTIRRX")) {
-                        //{"protocol":1,"data":33438150,"len":34
-                        var jsStr = msg.substring(14);
-                        var irdata = JSON.parse(jsStr);
-                        var protocol = "UNK";
-                        if (irdata.protocol == 1) protocol = "NEC";
-                        if (irdata.protocol == 2) protocol = "NECEXT";
-                        if (irdata.protocol == 3) protocol = "SONY";
-                        if (irdata.protocol == 4) protocol = "SAM";
-                        if (irdata.protocol == 5) protocol = "RC5";
-                        log("IR RX: " + protocol + " " + irdata.data.toString(16) + " " + irdata.len + " bits");
-                        return false;
-                    }
-                    if (msg.startsWith("#$##$$#GOTGPSDEBUG")) {
-                        document.getElementById("devGPSDebugRes").innerHTML = msg.substring(19);
-                        return false;
-                    }
-                    if (msg.startsWith("#$##$$#GOTDISPLAYTITLE")) {
-                        document.getElementById("wsd_title").innerHTML = escapeHTML(msg.substring(22));
-                        return false;
-                    }
-                    if (msg.startsWith("#$##$$#GOTDISPLAYMAIN")) {
-                        let tmp = escapeHTML(msg.substring(21));
-                        tmp = tmp.replaceAll("&#0092;n", "<br/>");
-                        if (tmp.includes("MOTION")) {
-                            document.getElementById("wsd_maintext").innerHTML = '<div style="background-color: #cf6679; color: black; padding: 20px; text-align: center; font-size: 1.5em; font-weight: bold; border-radius: 8px;">' + tmp + '</div>';
-                        } else if (tmp.includes("Scanning")) {
-                            document.getElementById("wsd_maintext").innerHTML = '<div style="background-color: #2e2e2e; color: #e0e0e0; padding: 20px; text-align: center; border-radius: 8px;">' + tmp + '</div>';
-                        } else {
-                            document.getElementById("wsd_maintext").innerHTML = tmp;
-                        }
-                        return false;
-                    }
-                }
-                if (msg.startsWith("#$##$$$")) {
-                    let tmp = msg.substring(7);
-                    log("Got ESP app: " + tmp);
-                    let appid = parseInt(tmp);
-                    refreshUIForCurrentApp(appid);
+        var headstr = data.ori.head + "&deg;";
+        if (data.ori.tilt < 400) headstr += " / " + data.ori.tilt + "&deg;";
+        document.getElementById("devHead").innerHTML = headstr;
+        document.getElementById("devGpsSats").innerHTML = data.gps.siu + "/" + data.gps.siv;
+    }
+
+    function onDataArrived() {
+        log("Command executed");
+        enadisaControls(true);
+        try {
+            respLinestp = respLines; respLines = [];
+            var tmpCb = respCallBack; respCallBack = null;
+            if (tmpCb) tmpCb();
+            if (resolveSt != null) { var tmp = resolveSt; resolveSt = null; tmp(); }
+        } catch(err) { console.log(err); }
+    }
+
+    function escapeHTML(unsafe) {
+        return unsafe.replace(/[\u0000-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u00FF]/g,
+            c => '&#' + ('000' + c.charCodeAt(0)).slice(-4) + ';');
+    }
+
+    function onMessageLine(msg) {
+        try {
+            console.log(msg);
+            if (msg.startsWith("#$##$$#")) {
+                if (msg == "#$##$$#I2C_DC\r\n") {
+                    log("PP Disconnected"); enadisaControls(false);
+                    const ctx = document.getElementById("screen").getContext("2d");
+                    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, 240, 320);
+                    var cp = document.getElementById("connStatePP");
+                    cp.innerHTML = "PP OFFLINE"; cp.className = "status-pill disconnected";
                     return false;
                 }
-                if (screensupdState == 1) {
-                    screensupdState = 2;
-                    log("Screen data arriving...");
+                if (msg == "#$##$$#I2C_CC\r\n") {
+                    log("PP Connected"); enadisaControls(true); fileManClose();
+                    var cp = document.getElementById("connStatePP");
+                    cp.innerHTML = "PP ONLINE"; cp.className = "status-pill connected";
+                    autoScreenRefresh(); return false;
                 }
-                if (screensupdState >= 0) return true;
-                if (expectedFileSize > 0) return true;
-                log("> " + msg + "\r\n");
-            } catch (err) { console.log(err); };
-            return true;
-        }
-        //any ws message
-        async function onMessage(event) {
-            try {
-                var str = await event.data.text();//String(event.data);
-                for (let i = 0; i < str.length; i++) {
-                    var resetline = false;
-                    respLastLine += str[i];
-                    if (str[i] == "\n") {
-                        respLines.push(respLastLine);
-                        onMessageLine(respLastLine);
-                        resetline = true;
-                        //need a download progressbar?
-                        if (expectedFileSize > 0) {
-                            var gotlines = respLines.length - 1;
-                            gotbytes = 0;
-                            for (let j = 0; j < gotlines; j++) {
-                                var byteperline = (respLines[j].length - 2) / 2;
-                                gotbytes += byteperline;
-                            }
-                        }
+                if (msg.startsWith("#$##$$#GOTSENS")) {
+                    gotSensor(JSON.parse(msg.substring(14))); return false;
+                }
+                if (msg.startsWith("#$##$$#GOTIRRX")) {
+                    var irdata = JSON.parse(msg.substring(14));
+                    var proto = ["UNK","NEC","NECEXT","SONY","SAM","RC5"][irdata.protocol] || "UNK";
+                    log("IR RX: " + proto + " " + irdata.data.toString(16) + " " + irdata.len + " bits");
+                    return false;
+                }
+                if (msg.startsWith("#$##$$#GOTGPSDEBUG")) {
+                    document.getElementById("devGPSDebugRes").innerHTML = msg.substring(19); return false;
+                }
+                if (msg.startsWith("#$##$$#GOTDISPLAYTITLE")) {
+                    document.getElementById("wsd_title").innerHTML = escapeHTML(msg.substring(22)); return false;
+                }
+                if (msg.startsWith("#$##$$#GOTDISPLAYMAIN")) {
+                    let tmp = escapeHTML(msg.substring(21)).replaceAll("&#0092;n", "<br/>");
+                    if (tmp.includes("MOTION")) {
+                        document.getElementById("wsd_maintext").innerHTML = '<div class="motion-alert">' + tmp + '</div>';
+                    } else if (tmp.includes("Scanning")) {
+                        document.getElementById("wsd_maintext").innerHTML = '<div class="scanning-msg">' + tmp + '</div>';
+                    } else {
+                        document.getElementById("wsd_maintext").innerHTML = tmp;
                     }
-                    if (respLastLine.endsWith(respWaiting) || respLastLine.startsWith(respWaiting)) {
-                        onDataArrived();
-                    }
-                    if (respLastLine.endsWith(PROMPT)) {//this counts too
-                        onMessageLine(respLastLine);
-                        resetline = true;
-                    }
-                    if (resetline) respLastLine = "";
+                    return false;
                 }
             }
-            catch (err) {
-                console.log(err);
+            if (msg.startsWith("#$##$$$")) {
+                let appid = parseInt(msg.substring(7));
+                log("Got ESP app: " + appid);
+                refreshUIForCurrentApp(appid); return false;
             }
-        }
+            if (screensupdState == 1) { screensupdState = 2; log("Screen data arriving..."); }
+            if (screensupdState >= 0) return true;
+            if (expectedFileSize > 0) return true;
+            log("> " + msg + "\r\n");
+        } catch(err) { console.log(err); }
+        return true;
+    }
 
-        function enterCritical() {
-            sendMessage("#$##$$#DISABLEESPASYNC\r\n");
-        }
+    async function onMessage(event) {
+        try {
+            var str = await event.data.text();
+            for (let i = 0; i < str.length; i++) {
+                var resetline = false;
+                respLastLine += str[i];
+                if (str[i] == "\n") {
+                    respLines.push(respLastLine);
+                    onMessageLine(respLastLine);
+                    resetline = true;
+                    if (expectedFileSize > 0) {
+                        var gl = respLines.length - 1; gotbytes = 0;
+                        for (let j = 0; j < gl; j++) gotbytes += (respLines[j].length - 2) / 2;
+                    }
+                }
+                if (respLastLine.endsWith(respWaiting) || respLastLine.startsWith(respWaiting)) onDataArrived();
+                if (respLastLine.endsWith(PROMPT)) { onMessageLine(respLastLine); resetline = true; }
+                if (resetline) respLastLine = "";
+            }
+        } catch(err) { console.log(err); }
+    }
 
-        function exitCritical() {
-            sendMessage("#$##$$#ENABLEESPASYNC\r\n");
-        }
+    function enterCritical() { sendMessage("#$##$$#DISABLEESPASYNC\r\n"); }
+    function exitCritical()  { sendMessage("#$##$$#ENABLEESPASYNC\r\n");  }
 
-        function sendMessage(data) {
-            try {
-                respLines = [];
-                log("< " + data);
-                screensupdState = 0;
-                if (data.startsWith("screenframe")) screensupdState = 1;
-                websocket.send(data);
-            } catch (err) { console.log(err); }
-        }
+    function sendMessage(data) {
+        try {
+            respLines = []; log("< " + data);
+            screensupdState = 0;
+            if (data.startsWith("screenframe")) screensupdState = 1;
+            websocket.send(data);
+        } catch(err) { console.log(err); }
+    }
 
-        async function sendAndWait(data) {
-            return new Promise((resolve) => {
+    async function sendAndWait(data) {
+        return new Promise(resolve => { try { resolveSt = resolve; sendMessage(data); } catch(err) { console.log(err); } });
+    }
+
+    function sendBinaryMessage(data) {
+        try { log("< BIN " + data.length); websocket.send(data); } catch(err) { console.log(err); }
+    }
+
+    function gotCursorPosition(canvas, event) {
+        if (!enableSend) return;
+        const rect = canvas.getBoundingClientRect();
+        sendTouch(Math.floor(event.clientX - rect.left), Math.floor(event.clientY - rect.top));
+    }
+
+    function onLoad(event) {
+        initWebSocket(); enadisaControls(false);
+        var canvas = document.getElementById("screen");
+        canvas.addEventListener('mousedown', e => gotCursorPosition(canvas, e));
+    }
+
+    async function screenUpdated() {
+        const canvas = document.getElementById("screen");
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#000"; ctx.fillRect(0, 0, 320, 480);
+        let y = -1;
+        if (respLinestp.length < 300 && respLinestp[respLinestp.length-1]?.startsWith("ChibiOS")) {
+            await sendAndWait("");
+            if (respLinestp.length < 300) { refreshScreen(); return; }
+        }
+        let portarf = false;
+        for (let i = 0; i < respLinestp.length; i++) {
+            if (respLinestp[i].length < 230) continue;
+            y++;
+            for (let x = 0; x < respLinestp[i].length; x++) {
+                if (x > 320) break;
                 try {
-                    resolveSt = resolve;
-                    sendMessage(data);
-                } catch (err) { console.log(err); }
-            });
-        }
-
-        function sendBinaryMessage(data) {
-            try {
-                log("< BIN " + data.length)
-                websocket.send(data);
-            } catch (err) { console.log(err); }
-        }
-
-
-        function gotCursorPosition(canvas, event) {
-            if (!enableSend) return;
-            const rect = canvas.getBoundingClientRect();
-            const x = Math.floor(event.clientX - rect.left);
-            const y = Math.floor(event.clientY - rect.top);
-            sendTouch(x, y);
-        }
-
-        function onLoad(event) {
-            initWebSocket();
-            enadisaControls(false);
-            var canvas = document.getElementById("screen");
-            canvas.addEventListener('mousedown', function (e) {
-                gotCursorPosition(canvas, e);
-            })
-        }
-        async function screenUpdated() {
-            const canvas = document.getElementById("screen");
-            const ctx = canvas.getContext("2d");
-            ctx.fillStyle = "#000";
-            ctx.fillRect(0, 0, 320, 480);
-            let y = -1;
-            if (respLinestp.length < 300 && respLinestp[respLinestp.length - 1].startsWith("ChibiOS")) {
-                await sendAndWait("");
-                if (respLinestp.length < 300) {
-                    refreshScreen();
-                    return;
-                }
+                    let by = respLinestp[i].charCodeAt(x) - 32;
+                    let r = ((by >> 4) & 3) << 6, g = ((by >> 2) & 3) << 6, b = (by & 3) << 6;
+                    ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fillRect(x, y, 1, 1);
+                } catch(err) { console.log(err); }
+                if (x > 300) portarf = true;
             }
-            let portarf = false;
-            for (let i = 0; i < respLinestp.length; i++) {
-                if (respLinestp[i].length < 230) continue;
-                y++;
-                for (let x = 0; x < respLinestp[i].length; x++) {
-                    if (x > 320) break;
-                    try {
-                        let by = respLinestp[i].charCodeAt(x) - 32;
-                        let r = ((by >> 4) & 3) << 6;
-                        let g = ((by >> 2) & 3) << 6;
-                        let b = (by & 3) << 6;
-                        ctx.fillStyle = `rgb(${r},${g},${b})`;
-                        ctx?.fillRect(x, y, 1, 1);
-                    }
-                    catch (err) { console.log(err); }
-                    if (x > 300) {
-                        portarf = true;
-                    }
-                }
-                if (y == 0 && portarf) {
-                    //this is portarf, so resize the screen
-                    canvas.height = 480;
-                    canvas.width = 320;
-                }
-            }
+            if (y == 0 && portarf) { canvas.height = 480; canvas.width = 320; }
+        }
+    }
 
-        }
+    function sendGps(lat, lon, alt) {
+        var tosend = "gotgps " + lat + " " + lon + " " + (alt ?? 0) + "\r\n";
+        respWaiting = PROMPT; enadisaControls(false); sendMessage(tosend);
+    }
 
-        function sendGps(lat, lon, alt) {
-            const altitude = alt !== null && alt !== undefined ? alt : 0;
-            var tosend = "gotgps " + String(lat) + " " + String(lon) + " " + String(altitude) + "\r\n";
-            respWaiting = PROMPT;
-            enadisaControls(false);
-            sendMessage(tosend);
-        }
-        async function sendButton(btn) {
-            var tosend = "button " + String(btn) + "\r\n";
-            respWaiting = PROMPT;
-            enadisaControls(false);
-            await sendAndWait(tosend);
-            autoScreenRefresh();
-        }
-        async function sendTouch(x, y) {
-            var tosend = "touch " + String(x) + " " + String(y) + "\r\n";
-            respWaiting = PROMPT;
-            enadisaControls(false);
-            await sendAndWait(tosend);
-            autoScreenRefresh();
-        }
-        function sendReboot() {
-            var tosend = "reboot\r\n";
-            respWaiting = PROMPT;
-            enadisaControls(false);
-            sendMessage(tosend);
-        }
-        function autoScreenRefresh() {
-            var checkbox = document.getElementById("screenRefresh");
-            if (checkbox.checked) {
-                refreshScreen();
-            }
-        }
-        function refreshScreen() {
-            var tosend = "screenframeshort\r\n";
-            respWaiting = PROMPT;
-            enadisaControls(false);
-            respCallBack = screenUpdated;
-            sendMessage(tosend);
-        }
+    async function sendButton(btn) {
+        respWaiting = PROMPT; enadisaControls(false);
+        await sendAndWait("button " + btn + "\r\n"); autoScreenRefresh();
+    }
 
-        function fileSelected() {
-            var selectElement = document.getElementById("fileList");
-            var selectedOption = selectElement.options[selectElement.selectedIndex];
-            var selectedValue = selectedOption.value;
-            if (selectedValue == "..") {
-                cwdup();
-                return;
-            }
-            if (selectedValue.endsWith("/")) {
-                var path = document.getElementById("filePath").innerHTML;
-                path += selectedValue;
-                document.getElementById("filePath").innerHTML = path;
-                ls();
-                return;
-            }
-            else {
-                if (!selectedValue.endsWith(".tar") && !selectedValue.endsWith(".bin")) {
-                    if (confirm("Download can take some time, start it?")) fileDownload();
-                }
+    async function sendTouch(x, y) {
+        respWaiting = PROMPT; enadisaControls(false);
+        await sendAndWait("touch " + x + " " + y + "\r\n"); autoScreenRefresh();
+    }
+
+    function sendReboot() {
+        respWaiting = PROMPT; enadisaControls(false); sendMessage("reboot\r\n");
+    }
+
+    function autoScreenRefresh() {
+        if (document.getElementById("screenRefresh").checked) refreshScreen();
+    }
+
+    function refreshScreen() {
+        respWaiting = PROMPT; enadisaControls(false);
+        respCallBack = screenUpdated; sendMessage("screenframeshort\r\n");
+    }
+
+    function fileSelected() {
+        var sel = document.getElementById("fileList");
+        var val = sel.options[sel.selectedIndex].value;
+        if (val == "..") { cwdup(); return; }
+        if (val.endsWith("/")) {
+            document.getElementById("filePath").innerHTML += val; ls(); return;
+        }
+        if (!val.endsWith(".tar") && !val.endsWith(".bin")) {
+            if (confirm("Download can take some time, start it?")) fileDownload();
+        } else { fileFlash(); }
+    }
+
+    async function fileDownload() {
+        var path = document.getElementById("filePath").innerHTML;
+        if (!path.endsWith("/") && path.length > 1) path += "/";
+        var val = document.getElementById("fileList").options[document.getElementById("fileList").selectedIndex].value;
+        if (val.endsWith("/")) { log("Can't download a folder yet."); return; }
+        receivedChunks = []; expectedFileSize = 0;
+        var target = path + val;
+        enadisaControls(false); await sendAndWait("fclose\r\n");
+        enadisaControls(false); await sendAndWait("filesize " + target + "\r\n");
+        if (respLinestp.length <= 2 || !respLinestp[2].startsWith("ok")) { log("File read error"); return; }
+        expectedFileSize = parseInt(respLinestp[1].trim());
+        enadisaControls(false); await sendAndWait("fopen " + target + "\r\n");
+        enadisaControls(false); enterCritical();
+        await sendAndWait("fseek 0\r\n");
+        enadisaControls(false); gotbytes = 0;
+        let gotbytesAll = 0, concatenatedHexData = "";
+        while (gotbytesAll < expectedFileSize) {
+            await sendAndWait("fread 512\r\n");
+            var beflen = concatenatedHexData.length;
+            concatenatedHexData += respLinestp.slice(1,-1).join('').replace(/\r\n/g,"");
+            if (respLinestp[respLinestp.length-1] != "ok\r\n")
+                concatenatedHexData += respLinestp[respLinestp.length-1].replace(/\r\n/g,"");
+            respLinestp = [];
+            gotbytesAll = concatenatedHexData.length / 2;
+            setProgress(Math.min(gotbytesAll/expectedFileSize*100, 100));
+            if (concatenatedHexData.length == beflen) break;
+        }
+        if (gotbytesAll < expectedFileSize) {
+            log("Error downloading. Got " + gotbytes + " instead of " + expectedFileSize); return;
+        }
+        expectedFileSize = 0; setProgress(-1);
+        const bytes = new Uint8Array(concatenatedHexData.length / 2);
+        for (let i = 0; i < concatenatedHexData.length; i += 2)
+            bytes[i/2] = parseInt(concatenatedHexData.substr(i, 2), 16);
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(new Blob([bytes]));
+        link.download = val; link.click();
+        enadisaControls(false); await sendAndWait("fclose\r\n"); exitCritical();
+    }
+
+    async function fileDelete() {
+        var path = document.getElementById("filePath").innerHTML;
+        if (!path.endsWith("/") && path.length > 1) path += "/";
+        var val = document.getElementById("fileList").options[document.getElementById("fileList").selectedIndex].value;
+        if (val.length < 1 || val == "..") { log("Please select a valid file."); return; }
+        if (val.endsWith("/")) { log("Can't delete a folder yet."); return; }
+        var target = path + val;
+        if (confirm("Really delete " + target + "?")) {
+            respWaiting = PROMPT; enadisaControls(false);
+            await sendAndWait("unlink " + target + "\r\n"); ls();
+        }
+    }
+
+    async function fileUpload() {
+        var fi = document.getElementById('fileUpfile');
+        if (fi.files.length == 0) { log('Please select a file to upload.'); return; }
+        var file = fi.files[0];
+        var path = document.getElementById("filePath").innerHTML;
+        if (!path.endsWith("/") && path.length > 1) path += "/";
+        var target = path + file.name;
+        enadisaControls(false); await sendAndWait("unlink " + target + "\r\n");
+        enadisaControls(false); await sendAndWait("fopen " + target + "\r\n");
+        enadisaControls(false); respWaiting = "send ";
+        await sendAndWait("fwb " + file.size + "\r");
+        respWaiting = PROMPT;
+        var chunkSize = 300, offset = 0;
+        enadisaControls(false);
+        var reader = new FileReader();
+        reader.onload = async function () {
+            if (websocket.readyState === WebSocket.OPEN) {
+                setProgress(offset / file.size * 100);
+                websocket.send(reader.result);
+                offset += reader.result.byteLength;
+                if (offset < file.size) { readSlice(offset); }
                 else {
-                    fileFlash();
+                    log("File sent"); setProgress(-1);
+                    await sendAndWait("");
+                    enadisaControls(false); await sendAndWait("fclose\r\n");
+                    enadisaControls(false); ls();
                 }
             }
+        };
+        async function readSlice(start) {
+            await new Promise(r => setTimeout(r, 1));
+            reader.readAsArrayBuffer(file.slice(start, start + chunkSize));
         }
+        readSlice(0);
+    }
 
-        async function fileDownload() {
-            var path = document.getElementById("filePath").innerHTML;
-            if (!path.endsWith("/") && path.length > 1) path = path + "/";
-            var selectElement = document.getElementById("fileList");
-            var selectedOption = selectElement.options[selectElement.selectedIndex];
-            var selectedValue = selectedOption.value;
-            if (selectedValue.endsWith("/")) {
-                log("Can't download a folder yet.");
-            }
-            else {
-                receivedChunks = [];
-                expectedFileSize = 0;
-                var target = path + selectedValue;
-                enadisaControls(false);
-                var tosend = "fclose\r\n";
-                respWaiting = PROMPT;
-                await sendAndWait(tosend);
-                enadisaControls(false);
-                tosend = "filesize " + target + "\r\n";
-                respWaiting = PROMPT;
-                await sendAndWait(tosend);
-                if (respLinestp.length <= 2) {
-                    log("Error downloading file");
-                    return;
-                }
-                if (!respLinestp[2].startsWith("ok")) {
-                    log("File read error");
-                    return;
-                }
-                expectedFileSize = parseInt(respLinestp[1].trim());
-                enadisaControls(false);
-                tosend = "fopen " + target + "\r\n";
-                respWaiting = PROMPT;
-                await sendAndWait(tosend);
-                //file opened
-                enadisaControls(false);
-                enterCritical();
-                var tosend = "fseek 0\r\n";
-                respWaiting = PROMPT;
-                await sendAndWait(tosend);
-                enadisaControls(false);
-                gotbytes = 0;
-                let gotbytesAll = 0;
-                let concatenatedHexData = "";
-                while (gotbytesAll < expectedFileSize) {
-                    //var tosend = "fread " + expectedFileSize.toString() + "\r\n";
-                    var tosend = "fread 512\r\n";
-                    respWaiting = PROMPT;//?!
-                    await sendAndWait(tosend);
-                    var beflen = concatenatedHexData.length;
-                    concatenatedHexData += respLinestp.slice(1, -1).join('').replace(/\r\n/g, "");
-                    if (respLinestp[respLinestp.length - 1] != "ok\r\n") {
-                        concatenatedHexData += respLinestp[respLinestp.length - 1].replace(/\r\n/g, "");
-                    }
-                    respLinestp = [];//save ram
-                    gotbytesAll = concatenatedHexData.length / 2;
-                    var progress = gotbytesAll / expectedFileSize * 100;
-                    if (progress > 100) progress = 100;
-                    setProgress(progress);
-                    //await new Promise(r => setTimeout(r, 150));
-                    if (concatenatedHexData.length == beflen) {
-                        break;
-                    }
-                }
-                //check if i downloaded it or not
-                if (gotbytesAll < expectedFileSize) {
-                    log("Error downloading file. I2C or Wifi issue?! Got " + gotbytes.toString() + " instead of " + expectedFileSize.toString());
-                    return;
-                }
-                expectedFileSize = 0;
-                setProgress(-1);
-                const bytes = new Uint8Array(concatenatedHexData.length / 2);
-                for (let i = 0; i < concatenatedHexData.length; i += 2) {
-                    bytes[i / 2] = parseInt(concatenatedHexData.substr(i, 2), 16);
-                }
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(new Blob([bytes]));
-                link.download = selectedValue;
-                link.click();
-                enadisaControls(false);
-                var tosend = "fclose\r\n";
-                respWaiting = PROMPT;
-                await sendAndWait(tosend);
-                exitCritical();
-            }
+    function fileFlash() {
+        var path = document.getElementById("filePath").innerHTML;
+        if (!path.endsWith("/") && path.length > 1) path += "/";
+        var val = document.getElementById("fileList").options[document.getElementById("fileList").selectedIndex].value;
+        var target = path + val;
+        if (!val.endsWith(".tar") && !val.endsWith(".bin")) {
+            log("Can flash only TAR and BIN files. Selected: " + target); return;
         }
-
-        async function fileDelete() {
-            var path = document.getElementById("filePath").innerHTML;
-            if (!path.endsWith("/") && path.length > 1) path = path + "/";
-            var selectElement = document.getElementById("fileList");
-            var selectedOption = selectElement.options[selectElement.selectedIndex];
-            var selectedValue = selectedOption.value;
-            if (selectedValue.length < 1 || selectedValue == "..") {
-                log("Please select a valid file.")
-                return;
-            }
-            if (selectedValue.endsWith("/")) {
-                log("Can't delete a folder yet.");
-            }
-            else {
-                var target = path + selectedValue;
-                if (confirm("Really delete this file? " + target)) {
-                    var tosend = "unlink " + target + "\r\n";
-                    respWaiting = PROMPT;
-                    enadisaControls(false);
-                    await sendAndWait(tosend);
-                    ls();
-                }
-            }
+        if (confirm("Really flash " + target + " ?")) {
+            respWaiting = PROMPT; enadisaControls(false); sendMessage("flash " + target + "\r\n");
         }
+    }
 
-        async function fileUpload() {
-            var fileInput = document.getElementById('fileUpfile');
-            if (fileInput.files.length > 0) {
-                var fileName = fileInput.files[0].name;
-                var file = fileInput.files[0];
-                var path = document.getElementById("filePath").innerHTML;
-                if (!path.endsWith("/") && path.length > 1) path = path + "/";
-                var target = path + fileName;
-                var tosend = "unlink " + target + "\r\n";
-                respWaiting = PROMPT;
-                enadisaControls(false);
-                await sendAndWait(tosend);
-                enadisaControls(false);
-                tosend = "fopen " + target + "\r\n";
-                respWaiting = PROMPT;
-                enadisaControls(false);
-                await sendAndWait(tosend);
-                enadisaControls(false);
-                tosend = "fwb " + file.size.toString() + "\r";
-                respWaiting = "send ";
-                enadisaControls(false);
-                await sendAndWait(tosend);
-                respWaiting = PROMPT;
-                var chunkSize = 300;
-                var offset = 0;
-                enadisaControls(false);
-                var reader = new FileReader();
-                reader.onload = async function () {
-                    if (websocket.readyState === WebSocket.OPEN) {
-                        setProgress(offset / file.size * 100);
-                        websocket.send(reader.result);
-                        offset += reader.result.byteLength;
-                        if (offset < file.size) {
-                            readSlice(offset);
-                        } else {
-                            //SENT ALL
-                            log("File sent");
-                            setProgress(-1);
-                            respWaiting = PROMPT;
-                            await sendAndWait(""); //wait for send end prompt
-                            tosend = "fclose\r\n";
-                            enadisaControls(false);
-                            await sendAndWait(tosend);
-                            enadisaControls(false);
-                            ls();
-                        }
-                    }
-                };
-                async function readSlice(start) {
-                    await new Promise(r => setTimeout(r, 1));
-                    var slice = file.slice(start, start + chunkSize);
-                    reader.readAsArrayBuffer(slice);
-                }
-                readSlice(0);
+    function filesLsArrived() {
+        var fl = document.getElementById("fileList");
+        fl.innerHTML = "";
+        if (document.getElementById("filePath").innerHTML != "/")
+            fl.innerHTML += "<option ondblclick='fileSelected()' value='..'>..</option>";
+        for (let i = 0; i < respLinestp.length; i++) {
+            var line = respLinestp[i].trim();
+            if (line.startsWith("ls ") || line.startsWith("#$##$$#") || line.startsWith(PROMPT)) continue;
+            fl.innerHTML += "<option ondblclick='fileSelected()' value='" + line + "'>" + line + "</option>";
+        }
+    }
 
-            } else {
-                log('Please select a file to upload.');
+    function ls() {
+        var path = document.getElementById("filePath").innerHTML.replace(/\/+$/, '') || "/";
+        respWaiting = PROMPT; enadisaControls(false);
+        respCallBack = filesLsArrived; sendMessage("ls " + path + "\r\n");
+    }
+
+    function cwdup() {
+        var path = document.getElementById("filePath").innerHTML.replace(/\/+$/, '');
+        let idx = path.lastIndexOf('/');
+        if (idx >= 0) path = path.substring(0, idx + 1);
+        document.getElementById("filePath").innerHTML = path || "/";
+        ls();
+    }
+
+    function manualSend() {
+        var tosend = document.getElementById("manualtxt").value;
+        if (!tosend.endsWith("\r\n")) tosend += "\r\n";
+        respWaiting = PROMPT; enadisaControls(false);
+        sendMessage(tosend); document.getElementById("manualtxt").value = "";
+    }
+
+    function getGPSPosition() {
+        if (gpsQueryInProgress) return;
+        if (!navigator.geolocation) { log("Geolocation not supported."); return; }
+        gpsQueryInProgress = true;
+        navigator.geolocation.getCurrentPosition(
+            pos => {
+                gpsQueryInProgress = false;
+                document.getElementById("devGpsLat").innerHTML = pos.coords.latitude;
+                document.getElementById("devGpsLon").innerHTML = pos.coords.longitude;
+                sendGps(pos.coords.latitude, pos.coords.longitude, pos.coords.altitude);
+            },
+            err => {
+                gpsQueryInProgress = false;
+                const msgs = ["","Permission denied","Position unavailable","Timeout"];
+                log("GPS error: " + (msgs[err.code] || "Unknown"));
             }
-        }
+        );
+    }
 
-        function fileFlash() {
-            var path = document.getElementById("filePath").innerHTML;
-            if (!path.endsWith("/") && path.length > 1) path = path + "/";
-            var selectElement = document.getElementById("fileList");
-            var selectedOption = selectElement.options[selectElement.selectedIndex];
-            var selectedValue = selectedOption.value;
-            var target = path + selectedValue;
-            if (!selectedValue.endsWith(".tar") && !selectedValue.endsWith(".bin")) {
-                log("Can flash only TAR and BIN files. Selected: " + target);
-            }
-            else {
-                if (confirm("Really flash " + target + " ?")) {
-                    var tosend = "flash " + target + "\r\n";
-                    respWaiting = PROMPT; //not needed, since pp will reconnect
-                    enadisaControls(false);
-                    sendMessage(tosend);
-                }
-            }
-        }
+    function fileManClose() {
+        document.getElementById("filemanager").style.display = "none";
+        document.getElementById("mainscreen").style.display  = "flex";
+        document.getElementById("devdatas").style.display    = "flex";
+    }
 
+    function fileManOpen() {
+        document.getElementById("filemanager").style.display = "block";
+        document.getElementById("mainscreen").style.display  = "none";
+        document.getElementById("devdatas").style.display    = "none";
+        ls();
+    }
 
-        function filesLsArrived() {
-            var fl = document.getElementById("fileList");
-            fl.innerHTML = "";
-            var path = document.getElementById("filePath").innerHTML;
-            if (path != "/") {
-                fl.innerHTML += "<option ondblclick='fileSelected(); return false;' value='..'>..</option>";
-            }
-            for (let i = 0; i < respLinestp.length; i++) {
-                var line = respLinestp[i].trim();
-                if (line.startsWith("ls ")) continue;
-                if (line.startsWith("#$##$$#")) continue;
-                if (line.startsWith(PROMPT)) continue;
-                fl.innerHTML += "<option ondblclick='fileSelected(); return false;' value='" + line + "'>" + line + "</option>";
-            }
+    function gpsDebugChkChanged(chk) {
+        if (chk.checked) {
+            sendMessage("#$##$$#GPSDEBUGON\r\n");
+            document.getElementById("devGPSDebugRes").style.display = "block";
+        } else {
+            sendMessage("#$##$$#GPSDEBUGOFF\r\n");
+            document.getElementById("devGPSDebugRes").style.display = "none";
         }
-
-        function ls() {
-            var path = document.getElementById("filePath").innerHTML;
-            if (path.endsWith("/") && path.length > 1) path = path.substring(0, path.length - 1);
-            var tosend = "ls " + path + "\r\n";
-            respWaiting = PROMPT;
-            enadisaControls(false);
-            respCallBack = filesLsArrived;
-            sendMessage(tosend);
-        }
-
-        function cwdup() {
-            var path = document.getElementById("filePath").innerHTML;
-            if (path.length > 1) {
-                path = path.replace(/\/+$/, '');
-                let lastSlashIndex = path.lastIndexOf('/');
-                if (lastSlashIndex >= 0) {
-                    path = path.substring(0, lastSlashIndex + 1);
-                }
-            }
-            document.getElementById("filePath").innerHTML = path;
-            ls();
-        }
-
-        function manualSend() {
-            var tosend = document.getElementById("manualtxt").value;
-            if (!tosend.endsWith("\r\n")) { tosend += "\r\n"; }
-            respWaiting = PROMPT;
-            enadisaControls(false);
-            sendMessage(tosend);
-            document.getElementById("manualtxt").value = "";
-        }
-
-        function getGPSPosition() {
-            if (gpsQueryInProgress) return;
-            if (navigator.geolocation) {
-                gpsQueryInProgress = true;
-                navigator.geolocation.getCurrentPosition(
-                    function (position) {
-                        gpsQueryInProgress = false;
-                        document.getElementById("devGpsLat").innerHTML = "Lat: " + position.coords.latitude;
-                        document.getElementById("devGpsLon").innerHTML = "Lon: " + position.coords.longitude;
-                        sendGps(position.coords.latitude, position.coords.longitude, position.coords.altitude)
-                    },
-                    function (error) {
-                        switch (error.code) {
-                            case error.PERMISSION_DENIED:
-                                log("User denied the request for Geolocation.");
-                                break;
-                            case error.POSITION_UNAVAILABLE:
-                                log("Location information is unavailable.");
-                                break;
-                            case error.TIMEOUT:
-                                log("The request to get user location timed out.");
-                                break;
-                            default:
-                                log("An unknown error occurred.");
-                                break;
-                        }
-                        gpsQueryInProgress = false;
-                    }
-                );
-            } else {
-                log("Geolocation is not supported by this browser.");
-            }
-        }
-
-        function fileManClose() {
-            document.getElementById("filemanager").style.display = "none";
-            document.getElementById("mainscreen").style.display = "flex";
-            document.getElementById("devdatas").style.display = "flex";
-        }
-        function fileManOpen() {
-            document.getElementById("filemanager").style.display = "block";
-            document.getElementById("mainscreen").style.display = "none";
-            document.getElementById("devdatas").style.display = "none";
-            ls();
-        }
-
-        function gpsDebugChkChanged(chk) {
-            if (chk.checked) {
-                sendMessage("#$##$$#GPSDEBUGON\r\n");
-                document.getElementById("devGPSDebugRes").style.display = "block";
-            }
-            else {
-                sendMessage("#$##$$#GPSDEBUGOFF\r\n");
-                document.getElementById("devGPSDebugRes").style.display = "none";
-            }
-        }
-
-    </script>
+    }
+</script>
 </body>
-
 </html>
