@@ -1,69 +1,82 @@
 <!DOCTYPE HTML>
 <html>
-
 <head>
     <title>ESP32PP Setup</title>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="data:,">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="setup.css">
 </head>
-
 <body>
-    <h1>ESP32 PP Setup</h1>
-    <h2><a href="/pinconfig.html">Pin Setup</a></h2>
-    <form method="post">
-        <div class="form-section">
-            <p>Host Name:</p>
-            <input type="text" maxlength="60" name="wifiHostName" value="%s" />
+    <div class="page-wrap">
+        <header class="page-header">
+            <a href="/" class="back-link">&larr; BACK</a>
+            <h1>SYSTEM CONFIG</h1>
+            <a href="/pinconfig.html" class="pin-link">[PIN] PIN SETUP &rarr;</a>
+        </header>
+
+        <form method="post">
+            <div class="form-section">
+                <div class="section-title">[ID] Host Identity</div>
+                <label>HOSTNAME</label>
+                <input type="text" maxlength="60" name="wifiHostName" value="%s" placeholder="esp32-device" />
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">[AP] Access Point (AP)</div>
+                <label>SSID</label>
+                <input type="text" maxlength="60" name="wifiAPSSID" value="%s" placeholder="ESP32-AP" />
+                <label>PASSWORD</label>
+                <input type="text" maxlength="60" name="wifiAPPASS" value="%s" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" />
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">[STA] Station (STA)</div>
+                <label>SSID</label>
+                <input type="text" maxlength="60" name="wifiStaSSID" value="%s" placeholder="Home Network" />
+                <label>PASSWORD</label>
+                <input type="text" maxlength="60" name="wifiStaPASS" value="%s" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" />
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">[CFG] Misc Parameters</div>
+                <label>RGB BRIGHTNESS (%)</label>
+                <input type="number" min="0" max="100" step="1" name="rgb_brightness" value="%d" />
+                <label>MAGNETIC DECLINATION (&deg;)</label>
+                <input type="number" min="0" max="365" step="0.1" name="declinationAngle" value="%0.1f" />
+                <div class="hint">Find your declination angle at <a href="https://www.ngdc.noaa.gov/geomag/calculators/magcalc.shtml" target="_blank">noaa.gov &#8599;</a></div>
+                <label style="margin-top:16px;">GPS BAUD RATE</label>
+                <select id="gps_baud" name="gps_baud">
+                    <option value="1200">1200</option>
+                    <option value="2400">2400</option>
+                    <option value="4800">4800</option>
+                    <option value="9600">9600</option>
+                    <option value="19200">19200</option>
+                    <option value="38400">38400</option>
+                    <option value="57600">57600</option>
+                    <option value="115200">115200</option>
+                </select>
+            </div>
+
+            <script>
+                document.addEventListener('DOMContentLoaded', () => {
+                    document.getElementById('gps_baud').value = '%d';
+                });
+            </script>
+
+            <div class="actions">
+                <input type="submit" name="submit" value="[SAVE] SAVE" />
+                <a href="/" class="cancel-btn">[X] CANCEL</a>
+            </div>
+        </form>
+
+        <div class="info-box">
+            <div class="info-text">[!] Wi-Fi changes require a reboot to apply.</div>
+            <a href="/ota.html" class="ota-btn">[OTA] OTA FIRMWARE UPDATE</a>
         </div>
-        <div class="form-section">
-            <p>Wi-Fi AP</p>
-            <label>SSID:</label>
-            <input type="text" maxlength="60" name="wifiAPSSID" value="%s" />
-            <label>Password:</label>
-            <input type="text" maxlength="60" name="wifiAPPASS" value="%s" />
-        </div>
-        <div class="form-section">
-            <p>Wi-Fi STA</p>
-            <label>SSID:</label>
-            <input type="text" maxlength="60" name="wifiStaSSID" value="%s" />
-            <label>Password:</label>
-            <input type="text" maxlength="60" name="wifiStaPASS" value="%s" />
-        </div>
-        <div class="form-section">
-            <p>Miscellaneous</p>
-            <label>RGB Brightness (%):</label>
-            <input type="number" min="0" max="100" step="1" name="rgb_brightness" value="%d" />
-            <label>Magnetic Declination Angle:</label>
-            <input type="number" min="0" max="365" step="0.1" name="declinationAngle" value="%0.1f" />
-            <i>Find Declination angle for your location here: <a
-                    href="https://www.ngdc.noaa.gov/geomag/calculators/magcalc.shtml" target="_blank">noaa.gov</a></i>
-            <label style="margin-top: 20px;">GPS Baud Rate:</label>
-            <select id="gps_baud" name="gps_baud">
-                <option value="1200">1200</option>
-                <option value="2400">2400</option>
-                <option value="4800">4800</option>
-                <option value="9600">9600</option>
-                <option value="19200">19200</option>
-                <option value="38400">38400</option>
-                <option value="57600">57600</option>
-                <option value="115200">115200</option>
-            </select>
-        </div>
-        <script>
-            document.addEventListener('DOMContentLoaded', () => {
-                document.getElementById('gps_baud').value = '%d';
-            });
-        </script>
-        <div class="actions">
-            <input type="submit" name="submit" value="Save" />
-            <a href="/">Cancel</a>
-        </div>
-    </form>
-    <div class="info-text">
-        Wi-Fi changes require rebooting the ESP to apply.<br />
-        <a href="/ota.html">OTA Update ESP</a>
     </div>
 </body>
-
 </html>
