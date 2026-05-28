@@ -339,6 +339,7 @@ void EPAppWifiCsi::enable_csi(uint32_t currentMillis) {
         .channel_filter_en = false,
         .manu_scale        = false,
         .shift             = 0,
+        .dump_ack_en       = false,
     };
     esp_wifi_set_csi_config(&csi_config);
     esp_wifi_set_csi_rx_cb(&EPAppWifiCsi::csi_cb, this);
@@ -646,37 +647,47 @@ void EPAppWifiCsi::RegisterHttpHandlers(httpd_handle_t server) {
     http_server = server;
 
     httpd_uri_t uri_root = {
-        .uri      = "/",
-        .method   = HTTP_GET,
-        .handler  = http_get_root,
-        .user_ctx = nullptr,
+        .uri                     = "/",
+        .method                  = HTTP_GET,
+        .handler                 = http_get_root,
+        .user_ctx                = nullptr,
+        .is_websocket            = false,
+        .handle_ws_control_frames = false,
+        .supported_subprotocol   = nullptr,
     };
     httpd_register_uri_handler(server, &uri_root);
 
     httpd_uri_t uri_state = {
-        .uri      = "/state",
-        .method   = HTTP_GET,
-        .handler  = http_get_state,
-        .user_ctx = nullptr,
+        .uri                     = "/state",
+        .method                  = HTTP_GET,
+        .handler                 = http_get_state,
+        .user_ctx                = nullptr,
+        .is_websocket            = false,
+        .handle_ws_control_frames = false,
+        .supported_subprotocol   = nullptr,
     };
     httpd_register_uri_handler(server, &uri_state);
 
     httpd_uri_t uri_cmd = {
-        .uri      = "/cmd",
-        .method   = HTTP_POST,
-        .handler  = http_post_cmd,
-        .user_ctx = nullptr,
+        .uri                     = "/cmd",
+        .method                  = HTTP_POST,
+        .handler                 = http_post_cmd,
+        .user_ctx                = nullptr,
+        .is_websocket            = false,
+        .handle_ws_control_frames = false,
+        .supported_subprotocol   = nullptr,
     };
     httpd_register_uri_handler(server, &uri_cmd);
 
-    // WebSocket endpoint (requires is_websocket=true)
+    // WebSocket endpoint
     httpd_uri_t uri_ws = {
-        .uri          = "/ws",
-        .method       = HTTP_GET,
-        .handler      = http_ws_handler,
-        .user_ctx     = nullptr,
-        .is_websocket = true,
+        .uri                     = "/ws",
+        .method                  = HTTP_GET,
+        .handler                 = http_ws_handler,
+        .user_ctx                = nullptr,
+        .is_websocket            = true,
         .handle_ws_control_frames = false,
+        .supported_subprotocol   = nullptr,
     };
     httpd_register_uri_handler(server, &uri_ws);
 
