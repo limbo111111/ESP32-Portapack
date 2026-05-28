@@ -291,7 +291,7 @@ esp_err_t i2c_slave_new(i2c_slave_config_t* config, i2c_slave_device_t** result)
     i2c_ll_slave_enable_scl_stretch(hal->dev, true);
     hal->dev->scl_stretch_conf.stretch_protect_num = 500;
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 0)
-    i2c_ll_slave_tx_auto_start_en(hal->dev, true);
+    i2c_ll_slave_enable_auto_start(hal->dev, true);
 #else
     i2c_ll_slave_enable_auto_start(hal->dev, true);
 #endif

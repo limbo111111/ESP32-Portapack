@@ -69,7 +69,8 @@ void TIR::recvIRTask(void* param) {
             .flags = {
                 .invert_in = 0,
                 .with_dma = 0,
-                .io_loop_back = 0
+                .io_loop_back = 0,
+                .allow_pd = 0,
             }
         };
 
@@ -289,6 +290,7 @@ void TIR::processSendTask(void* pvParameters) {
                     .with_dma = 0,
                     .io_loop_back = 0,
                     .io_od_mode = 0,
+                    .allow_pd = 0,
                 }  // do not need DMA backend
             };
             if (rmt_new_tx_channel(&txconf, &tx_channel) != ESP_OK) {

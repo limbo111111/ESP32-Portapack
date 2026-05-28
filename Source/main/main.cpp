@@ -190,8 +190,8 @@ static void i2c_scan(int sda, int scl) {
     esp_err_t res;
     printf("i2c scan: \n");
     i2c_dev_t dev = {};
-    dev.cfg.sda_io_num = sda;
-    dev.cfg.scl_io_num = scl;
+    dev.cfg.sda_io_num = (gpio_num_t)sda;
+    dev.cfg.scl_io_num = (gpio_num_t)scl;
     dev.cfg.master.clk_speed = 400000;
     for (uint8_t i = 1; i < 127; i++) {
         dev.addr = i;
@@ -535,6 +535,9 @@ void app_main(void) {
         .range_min = -10,
         .range_max = 80,
         .clk_src = TEMPERATURE_SENSOR_CLK_SRC_DEFAULT,
+        .flags = {
+            .allow_pd = 0
+        }
     };
     ESP_ERROR_CHECK(temperature_sensor_install(&temp_sensor_config, &temp_sensor));
     ESP_LOGI(TAG, "Enable temperature sensor");
