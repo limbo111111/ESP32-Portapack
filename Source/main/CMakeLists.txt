@@ -20,6 +20,7 @@ idf_component_register(SRCS "pinconfig.cpp" "tir.cpp" "ppshellcomm.cpp" "wifim.c
 "display/display_ws.cpp"
 "apps/appmanager.cpp"
 "apps/ep_app_wifispam.cpp"
+"apps/ep_app_wificsi.cpp"
 INCLUDE_DIRS "." "./sgp4" 
 EMBED_FILES ../data/index.html ../data/ota.html ../data/setup.html ../data/setup.css 
 REQUIRES esp_wifi esp_driver_i2c driver esp_driver_gpio app_update esp_driver_spi esp_driver_tsens esp_driver_uart esp_timer nvs_flash spi_flash spiffs esp_netif esp_http_server esp_http_client
