@@ -98,9 +98,9 @@ static const char* WEB_PAGE = R"RAWHTML(<!DOCTYPE html>
       </label>
       <div style="margin-top:.8rem">
         <label>
-          LPF Glättung (alpha)
-          <input type="range" id="alpha" min="0.5" max="0.99" step="0.01" value="0.97" oninput="updateAlpha(this.value)">
-          <span>Wert: <span class="val" id="alpha-val">0.97</span></span>
+          LPF Glättung (alpha) — niedrig=reaktiv, hoch=glatt
+          <input type="range" id="alpha" min="0.1" max="0.9" step="0.05" value="0.4" oninput="updateAlpha(this.value)">
+          <span>Wert: <span class="val" id="alpha-val">0.40</span></span>
         </label>
       </div>
     </div>
@@ -177,7 +177,7 @@ function applyState(s) {
   }
   document.getElementById('s-frames').textContent = s.frames || 0;
   document.getElementById('s-thresh').textContent = threshold.toFixed(2);
-  document.getElementById('s-alpha').textContent = (s.alpha||0.97).toFixed(2);
+  document.getElementById('s-alpha').textContent = (s.alpha||0.4).toFixed(2);
 
   const modeNames = ['Standby', 'Motion'];
   document.getElementById('s-mode').textContent = modeNames[s.mode] || '?';
@@ -324,8 +324,12 @@ void EPAppWifiCsi::enable_csi(uint32_t currentMillis) {
     last_avg_diff          = 0.0f;
     history_head           = 0;
     frame_count            = 0;
-    for (int i = 0; i < MAX_SUBCARRIERS; i++) prev_amplitudes[i] = 0.0f;
-    for (int i = 0; i < CSI_HISTORY_LEN;  i++) csi_history[i]    = 0.0f;
+    for (int i = 0; i < MAX_MAC_SLOTS; i++) {
+        mac_slots[i].active = false;
+        mac_slots[i].warmup = WARMUP_FRAMES;
+        memset(mac_slots[i].prev_amp, 0, sizeof(mac_slots[i].prev_amp));
+    }
+    for (int i = 0; i < CSI_HISTORY_LEN; i++) csi_history[i] = 0.0f;
 
     esp_wifi_set_promiscuous(true);
     wifi_promiscuous_filter_t filter = { .filter_mask = WIFI_PROMIS_FILTER_MASK_ALL };
@@ -371,8 +375,42 @@ void EPAppWifiCsi::process_csi_data(wifi_csi_info_t *data) {
     if (!data->buf || data->len <= 0) return;
 
     uint32_t now = (uint32_t)(esp_timer_get_time() / 1000ULL);
-    int start_idx = data->first_word_invalid ? 2 : 0;
 
+    // --- Per-MAC slot selection -------------------------------------------
+    // Using per-MAC state means we compare a frame only against previous
+    // frames from the *same transmitter*, so multipath is consistent and
+    // we don't get spurious diffs from different APs interleaved.
+    uint8_t mac_idx = 0;
+    bool    found   = false;
+    for (int m = 0; m < MAX_MAC_SLOTS; m++) {
+        if (mac_slots[m].active &&
+            memcmp(mac_slots[m].mac, data->mac, 6) == 0) {
+            mac_idx = m; found = true; break;
+        }
+    }
+    if (!found) {
+        // Find a free slot or evict the oldest
+        uint32_t oldest_ts = UINT32_MAX;
+        uint8_t  oldest_m  = 0;
+        for (int m = 0; m < MAX_MAC_SLOTS; m++) {
+            if (!mac_slots[m].active) { oldest_m = m; oldest_ts = 0; break; }
+            if (mac_slots[m].last_seen < oldest_ts) {
+                oldest_ts = mac_slots[m].last_seen;
+                oldest_m  = m;
+            }
+        }
+        mac_idx = oldest_m;
+        memcpy(mac_slots[mac_idx].mac, data->mac, 6);
+        mac_slots[mac_idx].active    = true;
+        mac_slots[mac_idx].warmup    = WARMUP_FRAMES;
+        mac_slots[mac_idx].last_seen = now;
+        memset(mac_slots[mac_idx].prev_amp, 0, sizeof(mac_slots[mac_idx].prev_amp));
+    }
+    MacSlot& slot = mac_slots[mac_idx];
+    slot.last_seen = now;
+
+    // --- Parse I/Q → magnitude per subcarrier ----------------------------
+    int start_idx = data->first_word_invalid ? 2 : 0;
     float total_diff = 0.0f;
     int   count      = 0;
 
@@ -384,13 +422,16 @@ void EPAppWifiCsi::process_csi_data(wifi_csi_info_t *data) {
         float re  = (float)(int8_t)data->buf[i + 1];
         float mag = sqrtf(im * im + re * re);
 
-        if (prev_amplitudes[sc] > 0.1f) {
-            total_diff += fabsf(mag - prev_amplitudes[sc]);
+        // Only accumulate diff once the slot has a valid baseline
+        if (slot.warmup == 0 && slot.prev_amp[sc] > 0.0f) {
+            total_diff += fabsf(mag - slot.prev_amp[sc]);
         }
-        prev_amplitudes[sc] = prev_amplitudes[sc] * lpf_alpha + mag * (1.0f - lpf_alpha);
+        // IIR update — always
+        slot.prev_amp[sc] = slot.prev_amp[sc] * lpf_alpha + mag * (1.0f - lpf_alpha);
         count++;
     }
 
+    if (slot.warmup > 0) { slot.warmup--; return; }  // skip diff during warm-up
     if (count == 0) return;
 
     float avg_diff = total_diff / (float)count;

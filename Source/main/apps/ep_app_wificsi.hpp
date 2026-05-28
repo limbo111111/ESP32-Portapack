@@ -11,9 +11,6 @@
 
 #define APP_CSI_PRE_STR "#$$#$$$4"
 
-// History depth for the web graph (ring buffer)
-#define CSI_HISTORY_LEN 64
-
 class EPAppWifiCsi : public EPApp {
    public:
     EPAppWifiCsi();
@@ -36,21 +33,43 @@ class EPAppWifiCsi : public EPApp {
     // -----------------------------------------------------------------------
     // Tunable thresholds (can be updated at runtime via web UI)
     // -----------------------------------------------------------------------
-    float    motion_threshold    = 1.2f;    // avg-diff that counts as motion
-    float    lpf_alpha           = 0.97f;   // IIR smoothing (0=fast, 1=no smooth)
+    float    motion_threshold    = 1.2f;
+    // Alpha deliberately low so the IIR tracks fast enough for the diff to
+    // be non-zero. 0.3–0.5 gives a good balance between noise suppression
+    // and responsiveness. Users can raise it in the web UI.
+    float    lpf_alpha           = 0.4f;
 
     static constexpr uint32_t MOTION_TIMEOUT_MS       = 2000;
     static constexpr uint32_t CALIB_REFRESH_MS        = 500;
     static constexpr uint32_t CALIB_DURATION_MS       = 10000;
-    static constexpr uint32_t WS_PUSH_INTERVAL_MS     = 200;  // max WebSocket push rate
+    static constexpr uint32_t WS_PUSH_INTERVAL_MS     = 200;
     static constexpr int      MAX_SUBCARRIERS          = 128;
+
+    // How many frames a new MAC slot must warm up before we count its diff.
+    // During warm-up the IIR baseline is being established.
+    static constexpr uint8_t  WARMUP_FRAMES            = 5;
+
+    // -----------------------------------------------------------------------
+    // Per-MAC state — tracks each unique transmitter independently so that
+    // frames from different APs/STAs are not mixed together, which would
+    // produce false diffs when different MACs are interleaved.
+    // -----------------------------------------------------------------------
+    static constexpr int MAX_MAC_SLOTS = 8;
+    struct MacSlot {
+        bool     active              = false;
+        uint8_t  mac[6]             = {};
+        uint8_t  warmup             = WARMUP_FRAMES;
+        uint32_t last_seen          = 0;
+        float    prev_amp[MAX_SUBCARRIERS] = {};
+    };
+    MacSlot mac_slots[MAX_MAC_SLOTS];
 
     // -----------------------------------------------------------------------
     // Spinlock — protects all fields shared with csi_cb (WiFi task)
     // -----------------------------------------------------------------------
     portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 
-    uint8_t  current_mode    = 0;   // 0=standby, 1=motion
+    uint8_t  current_mode    = 0;
     bool     motion_detected = false;
     uint32_t last_motion_time = 0;
 
@@ -59,21 +78,14 @@ class EPAppWifiCsi : public EPApp {
     uint32_t calib_seconds_left     = CALIB_DURATION_MS / 1000;
     uint32_t last_calib_refresh     = 0;
 
-    float prev_amplitudes[MAX_SUBCARRIERS] = {};
-
-    // -----------------------------------------------------------------------
-    // CSI history ring buffer — written by csi_cb, read by HTTP handler
-    // -----------------------------------------------------------------------
-    float    csi_history[CSI_HISTORY_LEN] = {};   // avg_diff per frame
-    uint16_t history_head = 0;                     // next write index
-    uint32_t frame_count  = 0;                     // total frames received
-
-    // Last avg_diff (for live display)
+    // CSI history ring buffer
+    static constexpr int CSI_HISTORY_LEN = 64;
+    float    csi_history[CSI_HISTORY_LEN] = {};
+    uint16_t history_head = 0;
+    uint32_t frame_count  = 0;
     float    last_avg_diff = 0.0f;
 
-    // -----------------------------------------------------------------------
-    // WebSocket descriptor list (simple; supports a small number of clients)
-    // -----------------------------------------------------------------------
+    // WebSocket client list
     static constexpr int MAX_WS_CLIENTS = 4;
     int ws_fds[MAX_WS_CLIENTS];
     int ws_fd_count = 0;
@@ -87,13 +99,12 @@ class EPAppWifiCsi : public EPApp {
     void disable_csi();
     void process_csi_data(wifi_csi_info_t *data);
 
-    void push_ws_update();   // sends JSON state to all connected WS clients
+    void push_ws_update();
     std::string build_json_state();
 
     void ws_add_client(int fd);
     void ws_remove_client(int fd);
 
-    // HTTP handler statics (httpd_uri_handler_t needs static/free functions)
     static esp_err_t http_get_root(httpd_req_t *req);
     static esp_err_t http_get_state(httpd_req_t *req);
     static esp_err_t http_post_cmd(httpd_req_t *req);
