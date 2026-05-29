@@ -3,6 +3,7 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "esp_wifi.h"
+#include "esp_netif.h"
 #include "lwip/inet.h"
 #include "lwip/ip4_addr.h"
 #include "lwip/netif.h"
@@ -446,22 +447,37 @@ void EPAppWifiCsi::enable_csi(uint32_t currentMillis) {
         .dump_ack_en       = false,
     };
     // -----------------------------------------------------------------------
-    // Verify STA is associated before enabling CSI.
-    // esp_wifi_set_csi(true) silently fails when not connected.
-    // esp_wifi_sta_get_ap_info returns ESP_OK only when associated.
+    // Verify STA has a valid IP — works reliably in both STA and APSTA mode.
+    // esp_wifi_sta_get_ap_info() can return errors in APSTA mode even when
+    // the STA interface is fully connected, so we check the netif IP instead.
     // -----------------------------------------------------------------------
-    wifi_ap_record_t ap_info;
-    esp_err_t assoc = esp_wifi_sta_get_ap_info(&ap_info);
-    if (assoc != ESP_OK) {
-        ESP_LOGW(TAG, "enable_csi: not associated (%s), retry in 2s",
-                 esp_err_to_name(assoc));
+    esp_netif_t* sta_netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    esp_netif_ip_info_t ip_info = {};
+    bool sta_has_ip = false;
+    if (sta_netif) {
+        esp_netif_get_ip_info(sta_netif, &ip_info);
+        sta_has_ip = (ip_info.ip.addr != 0);
+    }
+
+    if (!sta_has_ip) {
+        // Also try the legacy ap_record as fallback
+        wifi_ap_record_t ap_info;
+        if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) {
+            sta_has_ip = true;  // associated even without IP yet
+            ESP_LOGW(TAG, "enable_csi: AP='%s' but no IP yet, continuing anyway",
+                     ap_info.ssid);
+        }
+    }
+
+    if (!sta_has_ip) {
+        ESP_LOGW(TAG, "enable_csi: STA has no IP yet, retry in 2s");
         csi_init_pending = true;
         csi_retry_at_ms  = currentMillis + 2000;
         SetDisplayDirty();
         return;
     }
-    ESP_LOGI(TAG, "enable_csi: AP='%s' ch=%d RSSI=%d",
-             ap_info.ssid, ap_info.primary, ap_info.rssi);
+
+    ESP_LOGI(TAG, "enable_csi: STA IP=" IPSTR, IP2STR(&ip_info.ip));
 
     esp_err_t err = esp_wifi_set_csi_config(&csi_config);
     if (err != ESP_OK) {
