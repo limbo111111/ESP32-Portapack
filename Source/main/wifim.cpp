@@ -16,6 +16,10 @@ esp_netif_t* WifiM::esp_netif_sta = nullptr;
 
 uint32_t WifiM::last_wifi_conntry = 0;
 bool WifiM::wifi_sta_ok = false;
+uint32_t WifiM::sta_disconnected_since = 0;
+bool WifiM::ap_enabled = false;
+bool WifiM::ever_connected = false;
+bool WifiM::ap_configured = false;
 
 bool WifiM::getWifiStaStatus() {
     return wifi_sta_ok;
@@ -96,13 +100,22 @@ void WifiM::initialise_wifi(void) {
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL));
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
+    // ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA)); // Handled dynamically in config_wifi_apsta
     initialise_mdns();
     initialized = true;
 }
 
 bool WifiM::config_wifi_apsta() {
     esp_wifi_stop();
+
+    bool has_sta = !(strcmp(wifiStaSSID, "-") == 0) && strlen(wifiStaSSID) > 0;
+
+    ap_configured = true; // AP is setup in config
+    ap_enabled = !has_sta; // only enable AP immediately if we have NO sta configured. Otherwise STA starts alone.
+
+    // Always set mode to APSTA initially so we can configure both interfaces without errors
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
+
     wifi_config_t ap_config = {};
     strcpy((char*)ap_config.ap.ssid, wifiAPSSID);
     strcpy((char*)ap_config.ap.password, wifiAPPASS);
@@ -121,23 +134,81 @@ bool WifiM::config_wifi_apsta() {
     sta_config.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
     sta_config.sta.failure_retry_cnt = 4;
     sta_config.sta.sae_pwe_h2e = WPA3_SAE_PWE_BOTH;
+
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
+
+    if (has_sta) {
+        // Now switch to STA mode so the AP doesn't start
+        ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+        sta_disconnected_since = 0; // reset disconnect timer
+        ESP_LOGI(TAG, "STA configured, starting in WIFI_MODE_STA first.");
+    } else {
+        ESP_LOGI(TAG, "No STA configured, starting in WIFI_MODE_APSTA.");
+    }
+
     ESP_ERROR_CHECK(esp_wifi_start());
-    ESP_LOGI(TAG, "WIFI_MODE_AP started. SSID:%s password:%s", wifiAPSSID, wifiAPPASS);
-    ESP_ERROR_CHECK(esp_wifi_connect());
+
+    if (!has_sta) {
+        ESP_LOGI(TAG, "WIFI_MODE_AP started. SSID:%s password:%s", wifiAPSSID, wifiAPPASS);
+    }
+
+    if (has_sta) {
+        ESP_ERROR_CHECK(esp_wifi_connect());
+    }
     return true;
 }
 
 void WifiM::wifi_loop(uint32_t millis) {
     if (mode == 2) {
-        return;
+        return; // airplane mode
     }
+
+    bool has_sta = !(strcmp(wifiStaSSID, "-") == 0) && strlen(wifiStaSSID) > 0;
+
+    // Handle STA connection status and dynamic AP mode switching
+    if (has_sta) {
+        if (wifi_sta_ok) {
+            if (!ever_connected) {
+                ever_connected = true;
+            }
+            sta_disconnected_since = 0; // reset disconnect timer
+
+            // If connected to STA, and AP is enabled but has no clients, turn it off to save power/clean up
+            if (ap_enabled && ap_client_num == 0) {
+                ESP_LOGI(TAG, "STA connected successfully. Disabling fallback AP.");
+                esp_wifi_set_mode(WIFI_MODE_STA);
+                ap_enabled = false;
+            }
+        } else {
+            // STA is configured but disconnected
+            if (sta_disconnected_since == 0) {
+                sta_disconnected_since = millis;
+                if (sta_disconnected_since == 0) sta_disconnected_since = 1; // avoid 0
+            }
+
+            uint32_t disconnect_duration = millis - sta_disconnected_since;
+            uint32_t timeout = ever_connected ? 300000 : 30000; // 300s (5min) if reconnecting, 30s on first boot
+
+            // If disconnected for longer than timeout, enable fallback AP
+            if (!ap_enabled && disconnect_duration > timeout) {
+                ESP_LOGI(TAG, "STA connection timeout (%u ms). Enabling fallback AP.", (unsigned int)timeout);
+                esp_wifi_set_mode(WIFI_MODE_APSTA);
+                ap_enabled = true;
+            }
+        }
+    }
+
+    // Always try to reconnect to STA periodically if configured and disconnected,
+    // unless someone is actively connected to the AP (to avoid disruption)
     if (ap_client_num > 0 || wifi_sta_ok)
         return;
+
     if (millis - last_wifi_conntry > WIFI_CLIENR_RC_TIME) {
         ESP_LOGI(TAG, "esp_wifi_connect started.");
-        if (!(strcmp(wifiStaSSID, "-") == 0)) esp_wifi_connect();  // just connect if configured
+        if (has_sta) {
+            esp_wifi_connect();  // try to connect to the configured STA
+        }
         last_wifi_conntry = millis;
     }
 }
