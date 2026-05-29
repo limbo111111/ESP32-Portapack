@@ -316,12 +316,14 @@ void EPAppWifiCsi::ping_task(void* arg) {
     vTaskDelay(pdMS_TO_TICKS(200));
 
     // Open a raw ICMP socket (no external component, pure lwIP)
-    int sock = socket(AF_INET, SOCK_RAW, IP_PROTO_ICMP);
+    int sock = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (sock < 0) {
         ESP_LOGE(TAG, "ping_task: raw socket failed: %d", errno);
+        self->ping_sock_fd = -1;
         vTaskDelete(nullptr);
         return;
     }
+    self->ping_sock_fd = sock;
 
     // Set receive timeout so we don't block forever
     struct timeval tv = { .tv_sec = 0, .tv_usec = 500000 };
@@ -366,12 +368,16 @@ void EPAppWifiCsi::ping_task(void* arg) {
         // Drain receive buffer (we don't actually need the reply content —
         // the CSI callback fires on the incoming frame automatically)
         uint8_t rxbuf[128];
-        recv(sock, rxbuf, sizeof(rxbuf), 0);
+        int rlen = recv(sock, rxbuf, sizeof(rxbuf), 0);
+        if (rlen < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
+            ESP_LOGD(TAG, "ping_task: recv err %d", errno);
+        }
 
         vTaskDelay(pdMS_TO_TICKS(self->ping_interval_ms));
     }
-    // unreachable — task deleted externally via vTaskDelete
+    // Should not be reached; socket cleanup handled in disable_csi().
     close(sock);
+    self->ping_sock_fd = -1;
 }
 
 // ---------------------------------------------------------------------------
@@ -400,11 +406,13 @@ void EPAppWifiCsi::enable_csi(uint32_t currentMillis) {
     esp_wifi_set_csi_rx_cb(nullptr, nullptr);
 
     if (ping_task_handle) {
+        if (ping_sock_fd >= 0) {
+            close(ping_sock_fd);
+            ping_sock_fd = -1;
+        }
         vTaskDelete(ping_task_handle);
         ping_task_handle = nullptr;
     }
-
-    // Reset algorithm state
     is_calibrating         = true;
     calibration_start_time = currentMillis;
     last_calib_refresh     = currentMillis;
@@ -488,6 +496,12 @@ void EPAppWifiCsi::disable_csi() {
     ESP_LOGI(TAG, "Disabling CSI");
 
     if (ping_task_handle) {
+        // Close the socket first; this unblocks any pending recv() in the task
+        // so vTaskDelete() is safe and the FD is not leaked.
+        if (ping_sock_fd >= 0) {
+            close(ping_sock_fd);
+            ping_sock_fd = -1;
+        }
         vTaskDelete(ping_task_handle);
         ping_task_handle = nullptr;
     }
@@ -697,7 +711,11 @@ void EPAppWifiCsi::ws_add_client(int fd) {
 
 void EPAppWifiCsi::ws_remove_client(int fd) {
     for (int i = 0; i < MAX_WS_CLIENTS; i++) {
-        if (ws_fds[i] == fd) { ws_fds[i] = -1; ws_fd_count--; return; }
+        if (ws_fds[i] == fd) {
+            ws_fds[i] = -1;
+            if (ws_fd_count > 0) ws_fd_count--;
+            return;
+        }
     }
 }
 
@@ -711,7 +729,7 @@ std::string EPAppWifiCsi::build_json_state() {
     memcpy(snap_hist, csi_history, sizeof(snap_hist));
     portEXIT_CRITICAL(&mux);
 
-    char buf[1024];
+    char buf[2048];
     int n = snprintf(buf, sizeof(buf),
         "{\"mode\":%d,\"motion\":%s,\"calibrating\":%s,"
         "\"calib_left\":%u,\"last_diff\":%.4f,\"frames\":%lu,"
