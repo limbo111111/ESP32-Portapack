@@ -77,6 +77,11 @@ class WifiM {
     static uint32_t last_wifi_conntry;
     static bool wifi_sta_ok;
 
+    static uint32_t sta_disconnected_since;
+    static bool ap_enabled;
+    static bool ever_connected;
+    static bool ap_configured;
+
     static uint8_t mode;  // 1 off, 2 on //airplane mode
     static esp_netif_t* esp_netif_ap;
     static esp_netif_t* esp_netif_sta;
