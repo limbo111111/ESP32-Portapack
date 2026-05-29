@@ -22,7 +22,24 @@ bool WifiM::ever_connected = false;
 bool WifiM::ap_configured = false;
 
 bool WifiM::getWifiStaStatus() {
-    return wifi_sta_ok;
+    // Primary check: the event-driven flag (set on IP_EVENT_STA_GOT_IP).
+    if (wifi_sta_ok) return true;
+
+    // Fallback: the flag may have been missed (e.g. reconnect with same IP
+    // where the driver suppresses a second IP_EVENT_STA_GOT_IP, or a race
+    // between STA_DISCONNECTED clearing it and the next GOT_IP).
+    // Ask the netif directly — if it has a non-zero IP we are connected.
+    esp_netif_t* sta_netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (sta_netif) {
+        esp_netif_ip_info_t ipinfo;
+        if (esp_netif_get_ip_info(sta_netif, &ipinfo) == ESP_OK &&
+            ipinfo.ip.addr != 0) {
+            // Sync the flag so future calls are fast
+            wifi_sta_ok = true;
+            return true;
+        }
+    }
+    return false;
 }
 
 int WifiM::getWifiApClientNum() {
@@ -41,12 +58,28 @@ void WifiM::event_handler(void* arg, esp_event_base_t event_base, int32_t event_
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
         ESP_LOGI(TAG, "WIFI_EVENT_STA_DISCONNECTED");
         if (ap_client_num <= 0) {
-            wifi_sta_ok = false;
-            currIp[0] = 0;
-            currIp[1] = 0;
-            currIp[2] = 0;
-            currIp[3] = 0;
-            // esp_wifi_connect(); // only when no ap clients presents
+            // Only clear wifi_sta_ok if the netif has actually lost its IP.
+            // On fast reconnects the IP may still be valid and
+            // IP_EVENT_STA_GOT_IP won't fire again — so don't clear
+            // prematurely or the CSI app will stall waiting for a retry.
+            bool ip_still_valid = false;
+            esp_netif_t* sta_netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+            if (sta_netif) {
+                esp_netif_ip_info_t ipinfo;
+                if (esp_netif_get_ip_info(sta_netif, &ipinfo) == ESP_OK &&
+                    ipinfo.ip.addr != 0) {
+                    ip_still_valid = true;
+                }
+            }
+            if (!ip_still_valid) {
+                wifi_sta_ok = false;
+                currIp[0] = 0;
+                currIp[1] = 0;
+                currIp[2] = 0;
+                currIp[3] = 0;
+            } else {
+                ESP_LOGI(TAG, "STA_DISCONNECTED but IP still valid, keeping wifi_sta_ok=true");
+            }
         }
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STACONNECTED) {
         // count ap client number
@@ -80,6 +113,13 @@ void WifiM::event_handler(void* arg, esp_event_base_t event_base, int32_t event_
         currIp[3] = (ip_info->ip.addr >> 24) & 0xFF;
 
         ESP_LOGI(TAG, "IP_EVENT_STA_GOT_IP");
+    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_LOST_IP) {
+        ESP_LOGI(TAG, "IP_EVENT_STA_LOST_IP");
+        wifi_sta_ok = false;
+        currIp[0] = 0;
+        currIp[1] = 0;
+        currIp[2] = 0;
+        currIp[3] = 0;
     }
 }
 
@@ -98,6 +138,7 @@ void WifiM::initialise_wifi(void) {
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_AP_STACONNECTED, &event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_AP_STADISCONNECTED, &event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_LOST_IP, &event_handler, NULL));
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
     // ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA)); // Handled dynamically in config_wifi_apsta
