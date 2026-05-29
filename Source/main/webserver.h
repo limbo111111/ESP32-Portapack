@@ -35,7 +35,7 @@ static bool disable_esp_async = false;  // for example while in file transfer mo
 #define SETUP_CSS_PATH "/spiffs/setup.css"
 #define OTA_HTML_PATH "/spiffs/ota.html"
 
-static char setup_html_out[3300];
+static char setup_html_out[5120];
 extern const char index_start[] asm("_binary_index_html_start");
 extern const char index_end[] asm("_binary_index_html_end");
 extern const char setup_start[] asm("_binary_setup_html_start");
