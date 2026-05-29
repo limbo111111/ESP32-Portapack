@@ -2,6 +2,11 @@
 #include "pp_commands.hpp"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "esp_wifi.h"
+#include "lwip/inet.h"
+#include "lwip/ip4_addr.h"
+#include "lwip/netif.h"
+#include "ping/ping_sock.h"
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
@@ -291,6 +296,59 @@ window.addEventListener('resize', drawGraph);
 )RAWHTML";
 
 // ---------------------------------------------------------------------------
+// Ping task — sends ICMP echo to the gateway to generate steady CSI frames
+// ---------------------------------------------------------------------------
+
+void EPAppWifiCsi::ping_task(void* arg) {
+    EPAppWifiCsi* self = static_cast<EPAppWifiCsi*>(arg);
+
+    // Wait briefly so CSI callback is fully registered
+    vTaskDelay(pdMS_TO_TICKS(200));
+
+    while (true) {
+        // Resolve gateway IP via lwIP netif
+        struct netif* nif = netif_default;
+        if (!nif || !netif_is_up(nif)) {
+            ESP_LOGW(TAG, "ping_task: netif not up, waiting...");
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            continue;
+        }
+
+        ip4_addr_t gw = nif->gw;
+        if (gw.addr == 0) {
+            ESP_LOGW(TAG, "ping_task: no gateway, waiting...");
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            continue;
+        }
+
+        // Send one ICMP echo via esp_ping
+        esp_ping_config_t ping_cfg = ESP_PING_DEFAULT_CONFIG();
+        ping_cfg.target_addr.u_addr.ip4 = gw;
+        ping_cfg.target_addr.type       = IPADDR_TYPE_V4;
+        ping_cfg.count                  = 1;
+        ping_cfg.interval_ms            = 0;
+        ping_cfg.timeout_ms             = 500;
+        ping_cfg.task_stack_size        = 0;   // run inline, not in subtask
+        ping_cfg.task_prio              = 0;
+
+        esp_ping_handle_t hdl;
+        if (esp_ping_new_session(&ping_cfg, nullptr, &hdl) == ESP_OK) {
+            esp_ping_start(hdl);
+            // Wait for single ping to complete (timeout + margin)
+            vTaskDelay(pdMS_TO_TICKS(600));
+            esp_ping_stop(hdl);
+            esp_ping_delete_session(hdl);
+        } else {
+            ESP_LOGW(TAG, "ping_task: esp_ping_new_session failed");
+            vTaskDelay(pdMS_TO_TICKS(500));
+        }
+
+        // Wait until next ping window
+        vTaskDelay(pdMS_TO_TICKS(self->ping_interval_ms));
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Constructor / Destructor
 // ---------------------------------------------------------------------------
 
@@ -311,10 +369,16 @@ EPAppWifiCsi::~EPAppWifiCsi() {
 void EPAppWifiCsi::enable_csi(uint32_t currentMillis) {
     ESP_LOGI(TAG, "Enabling CSI");
 
+    // Stop any previous state cleanly (no promiscuous — see below)
     esp_wifi_set_csi(false);
     esp_wifi_set_csi_rx_cb(nullptr, nullptr);
 
-    // Reset state (callback is off, no lock needed)
+    if (ping_task_handle) {
+        vTaskDelete(ping_task_handle);
+        ping_task_handle = nullptr;
+    }
+
+    // Reset algorithm state
     is_calibrating         = true;
     calibration_start_time = currentMillis;
     last_calib_refresh     = currentMillis;
@@ -331,35 +395,65 @@ void EPAppWifiCsi::enable_csi(uint32_t currentMillis) {
     }
     for (int i = 0; i < CSI_HISTORY_LEN; i++) csi_history[i] = 0.0f;
 
-    esp_wifi_set_promiscuous(true);
-    wifi_promiscuous_filter_t filter = { .filter_mask = WIFI_PROMIS_FILTER_MASK_ALL };
-    esp_wifi_set_promiscuous_filter(&filter);
+    // KEY: Do NOT use promiscuous mode.
+    // esp_wifi_set_csi() only fires callbacks for frames received in the
+    // normal STA receive path (i.e. from the associated AP). In pure
+    // promiscuous mode without an association the driver discards most
+    // frames before the CSI hook runs — that is why frame_count stays 0.
+    //
+    // Correct approach:
+    //   1. WiFi already connected as STA (handled by the main firmware).
+    //   2. Configure CSI and register callback.
+    //   3. Spawn a ping task → the AP's replies are guaranteed CSI frames
+    //      from a fixed, known transmitter.
 
     wifi_csi_config_t csi_config = {
         .lltf_en           = true,
         .htltf_en          = true,
         .stbc_htltf2_en    = true,
         .ltf_merge_en      = true,
-        .channel_filter_en = false,
+        .channel_filter_en = true,
         .manu_scale        = false,
         .shift             = 0,
         .dump_ack_en       = false,
     };
-    esp_wifi_set_csi_config(&csi_config);
+    esp_err_t err = esp_wifi_set_csi_config(&csi_config);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_wifi_set_csi_config: %s", esp_err_to_name(err));
+    }
+
     esp_wifi_set_csi_rx_cb(&EPAppWifiCsi::csi_cb, this);
-    esp_wifi_set_csi(true);
+
+    err = esp_wifi_set_csi(true);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_wifi_set_csi(true): %s — WiFi connected?", esp_err_to_name(err));
+        csi_init_failed = true;
+        SetDisplayDirty();
+        return;
+    }
+    csi_init_failed = false;
+
+    // Ping task: sends ICMP to gateway every PING_INTERVAL_MS so there is
+    // always a frame coming back from the AP.
+    xTaskCreate(ping_task, "csi_ping", 4096, this, 5, &ping_task_handle);
 
     SetDisplayDirty();
 }
 
 void EPAppWifiCsi::disable_csi() {
     ESP_LOGI(TAG, "Disabling CSI");
+
+    if (ping_task_handle) {
+        vTaskDelete(ping_task_handle);
+        ping_task_handle = nullptr;
+    }
+
     esp_wifi_set_csi(false);
     esp_wifi_set_csi_rx_cb(nullptr, nullptr);
-    esp_wifi_set_promiscuous(false);
     is_calibrating  = false;
     motion_detected = false;
     last_avg_diff   = 0.0f;
+    csi_init_failed = false;
 }
 
 // ---------------------------------------------------------------------------
@@ -507,6 +601,10 @@ void EPAppWifiCsi::OnDisplayRequest(DisplayGeneric* display) {
         return;
     }
     display->showTitle("WiFi CSI Radar");
+    if (csi_init_failed) {
+        display->showMainText("FEHLER: WiFi nicht\nverbunden!\nBitte erst verbinden.");
+        return;
+    }
     if (is_calibrating) {
         char buf[64];
         snprintf(buf, sizeof(buf),

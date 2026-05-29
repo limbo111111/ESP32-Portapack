@@ -4,7 +4,9 @@
 #include "ep_app.hpp"
 #include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include <freertos/portmacro.h>
+#include "ping/ping_sock.h"
 #include <esp_http_server.h>
 #include <vector>
 #include <string>
@@ -91,6 +93,16 @@ class EPAppWifiCsi : public EPApp {
     int ws_fd_count = 0;
     httpd_handle_t http_server = nullptr;
     uint32_t last_ws_push_ms  = 0;
+
+    // -----------------------------------------------------------------------
+    // Ping task — keeps a steady CSI frame stream by pinging the gateway
+    // -----------------------------------------------------------------------
+    static constexpr uint32_t PING_INTERVAL_MS = 100; // ping every 100 ms
+    uint32_t           ping_interval_ms  = PING_INTERVAL_MS;
+    TaskHandle_t       ping_task_handle  = nullptr;
+    bool               csi_init_failed   = false;
+
+    static void ping_task(void* arg);
 
     // -----------------------------------------------------------------------
     // Internal helpers
