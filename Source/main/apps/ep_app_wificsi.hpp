@@ -100,6 +100,8 @@ class EPAppWifiCsi : public EPApp {
     uint32_t           ping_interval_ms  = PING_INTERVAL_MS;
     TaskHandle_t       ping_task_handle  = nullptr;
     bool               csi_init_failed   = false;
+    bool               csi_init_pending  = false;  // retry pending
+    uint32_t           csi_retry_at_ms   = 0;      // when to retry
 
     static void ping_task(void* arg);
 

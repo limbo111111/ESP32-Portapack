@@ -445,6 +445,24 @@ void EPAppWifiCsi::enable_csi(uint32_t currentMillis) {
         .shift             = 0,
         .dump_ack_en       = false,
     };
+    // -----------------------------------------------------------------------
+    // Verify STA is associated before enabling CSI.
+    // esp_wifi_set_csi(true) silently fails when not connected.
+    // esp_wifi_sta_get_ap_info returns ESP_OK only when associated.
+    // -----------------------------------------------------------------------
+    wifi_ap_record_t ap_info;
+    esp_err_t assoc = esp_wifi_sta_get_ap_info(&ap_info);
+    if (assoc != ESP_OK) {
+        ESP_LOGW(TAG, "enable_csi: not associated (%s), retry in 2s",
+                 esp_err_to_name(assoc));
+        csi_init_pending = true;
+        csi_retry_at_ms  = currentMillis + 2000;
+        SetDisplayDirty();
+        return;
+    }
+    ESP_LOGI(TAG, "enable_csi: AP='%s' ch=%d RSSI=%d",
+             ap_info.ssid, ap_info.primary, ap_info.rssi);
+
     esp_err_t err = esp_wifi_set_csi_config(&csi_config);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "esp_wifi_set_csi_config: %s", esp_err_to_name(err));
@@ -454,19 +472,22 @@ void EPAppWifiCsi::enable_csi(uint32_t currentMillis) {
 
     err = esp_wifi_set_csi(true);
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "esp_wifi_set_csi(true): %s — WiFi connected?", esp_err_to_name(err));
-        csi_init_failed = true;
+        ESP_LOGE(TAG, "esp_wifi_set_csi(true): %s", esp_err_to_name(err));
+        csi_init_pending = true;
+        csi_retry_at_ms  = currentMillis + 3000;
         SetDisplayDirty();
         return;
     }
-    csi_init_failed = false;
 
-    // Ping task: sends ICMP to gateway every PING_INTERVAL_MS so there is
-    // always a frame coming back from the AP.
+    csi_init_failed  = false;
+    csi_init_pending = false;
+    ESP_LOGI(TAG, "CSI enabled OK");
+
     xTaskCreate(ping_task, "csi_ping", 4096, this, 5, &ping_task_handle);
 
     SetDisplayDirty();
 }
+
 
 void EPAppWifiCsi::disable_csi() {
     ESP_LOGI(TAG, "Disabling CSI");
@@ -583,6 +604,14 @@ void EPAppWifiCsi::process_csi_data(wifi_csi_info_t *data) {
 void EPAppWifiCsi::Loop(uint32_t currentMillis) {
     bool dirty = false;
 
+    // Retry CSI init if a previous attempt was deferred (WiFi not ready)
+    if (csi_init_pending && currentMillis >= csi_retry_at_ms) {
+        csi_init_pending = false;
+        enable_csi(currentMillis);
+        return;
+    }
+
+
     if (is_calibrating) {
         uint32_t elapsed = currentMillis - calibration_start_time;
         if (elapsed >= CALIB_DURATION_MS) {
@@ -630,7 +659,11 @@ void EPAppWifiCsi::OnDisplayRequest(DisplayGeneric* display) {
     }
     display->showTitle("WiFi CSI Radar");
     if (csi_init_failed) {
-        display->showMainText("FEHLER: WiFi nicht\nverbunden!\nBitte erst verbinden.");
+        display->showMainText("FEHLER: CSI init\ngescheitert.");
+        return;
+    }
+    if (csi_init_pending) {
+        display->showMainText("Warte auf WiFi...\nRetry laeuft...");
         return;
     }
     if (is_calibrating) {
