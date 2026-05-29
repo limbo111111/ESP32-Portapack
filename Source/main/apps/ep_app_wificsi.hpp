@@ -6,7 +6,6 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/portmacro.h>
-#include "ping/ping_sock.h"
 #include <esp_http_server.h>
 #include <vector>
 #include <string>

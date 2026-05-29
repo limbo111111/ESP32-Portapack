@@ -6,7 +6,10 @@
 #include "lwip/inet.h"
 #include "lwip/ip4_addr.h"
 #include "lwip/netif.h"
-#include "ping/ping_sock.h"
+#include "lwip/sockets.h"
+#include "lwip/ip.h"
+#include "lwip/icmp.h"
+#include "lwip/inet_chksum.h"
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
@@ -299,53 +302,78 @@ window.addEventListener('resize', drawGraph);
 // Ping task — sends ICMP echo to the gateway to generate steady CSI frames
 // ---------------------------------------------------------------------------
 
+// Raw ICMP echo packet layout (no external ping component needed)
+struct icmp_echo_hdr_simple {
+    uint8_t  type;
+    uint8_t  code;
+    uint16_t chksum;
+    uint16_t id;
+    uint16_t seqno;
+};
+
 void EPAppWifiCsi::ping_task(void* arg) {
     EPAppWifiCsi* self = static_cast<EPAppWifiCsi*>(arg);
 
     // Wait briefly so CSI callback is fully registered
     vTaskDelay(pdMS_TO_TICKS(200));
 
+    // Open a raw ICMP socket (no external component, pure lwIP)
+    int sock = socket(AF_INET, SOCK_RAW, IP_PROTO_ICMP);
+    if (sock < 0) {
+        ESP_LOGE(TAG, "ping_task: raw socket failed: %d", errno);
+        vTaskDelete(nullptr);
+        return;
+    }
+
+    // Set receive timeout so we don't block forever
+    struct timeval tv = { .tv_sec = 0, .tv_usec = 500000 };
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+    uint16_t seq = 0;
+    uint8_t  pkt[sizeof(icmp_echo_hdr_simple) + 32];  // 32 bytes payload
+
     while (true) {
-        // Resolve gateway IP via lwIP netif
+        // Resolve gateway each iteration (handles reconnects)
         struct netif* nif = netif_default;
         if (!nif || !netif_is_up(nif)) {
-            ESP_LOGW(TAG, "ping_task: netif not up, waiting...");
+            ESP_LOGW(TAG, "ping_task: netif down, waiting...");
             vTaskDelay(pdMS_TO_TICKS(1000));
             continue;
         }
-
-        ip4_addr_t gw = nif->gw;
-        if (gw.addr == 0) {
+        uint32_t gw_addr = nif->gw.addr;
+        if (gw_addr == 0) {
             ESP_LOGW(TAG, "ping_task: no gateway, waiting...");
             vTaskDelay(pdMS_TO_TICKS(1000));
             continue;
         }
 
-        // Send one ICMP echo via esp_ping
-        esp_ping_config_t ping_cfg = ESP_PING_DEFAULT_CONFIG();
-        ping_cfg.target_addr.u_addr.ip4 = gw;
-        ping_cfg.target_addr.type       = IPADDR_TYPE_V4;
-        ping_cfg.count                  = 1;
-        ping_cfg.interval_ms            = 0;
-        ping_cfg.timeout_ms             = 500;
-        ping_cfg.task_stack_size        = 0;   // run inline, not in subtask
-        ping_cfg.task_prio              = 0;
+        // Build ICMP echo request
+        memset(pkt, 0xAB, sizeof(pkt));   // payload pattern
+        icmp_echo_hdr_simple* hdr = reinterpret_cast<icmp_echo_hdr_simple*>(pkt);
+        hdr->type   = 8;                  // ICMP_ECHO
+        hdr->code   = 0;
+        hdr->chksum = 0;
+        hdr->id     = htons(0xC5C1);     // arbitrary ID
+        hdr->seqno  = htons(seq++);
+        // Compute checksum over entire packet
+        hdr->chksum = inet_chksum(pkt, sizeof(pkt));
 
-        esp_ping_handle_t hdl;
-        if (esp_ping_new_session(&ping_cfg, nullptr, &hdl) == ESP_OK) {
-            esp_ping_start(hdl);
-            // Wait for single ping to complete (timeout + margin)
-            vTaskDelay(pdMS_TO_TICKS(600));
-            esp_ping_stop(hdl);
-            esp_ping_delete_session(hdl);
-        } else {
-            ESP_LOGW(TAG, "ping_task: esp_ping_new_session failed");
-            vTaskDelay(pdMS_TO_TICKS(500));
-        }
+        struct sockaddr_in dest = {};
+        dest.sin_family      = AF_INET;
+        dest.sin_addr.s_addr = gw_addr;
 
-        // Wait until next ping window
+        sendto(sock, pkt, sizeof(pkt), 0,
+               reinterpret_cast<struct sockaddr*>(&dest), sizeof(dest));
+
+        // Drain receive buffer (we don't actually need the reply content —
+        // the CSI callback fires on the incoming frame automatically)
+        uint8_t rxbuf[128];
+        recv(sock, rxbuf, sizeof(rxbuf), 0);
+
         vTaskDelay(pdMS_TO_TICKS(self->ping_interval_ms));
     }
+    // unreachable — task deleted externally via vTaskDelete
+    close(sock);
 }
 
 // ---------------------------------------------------------------------------
