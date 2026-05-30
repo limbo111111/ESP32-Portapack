@@ -533,10 +533,13 @@ void app_main(void) {
     temperature_sensor_config_t temp_sensor_config = {
         .range_min = -10,
         .range_max = 80,
+#if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3) || \
+    defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
         .clk_src = TEMPERATURE_SENSOR_CLK_SRC_DEFAULT,
         .flags = {
             .allow_pd = 0,
         },
+#endif
     };
     ESP_ERROR_CHECK(temperature_sensor_install(&temp_sensor_config, &temp_sensor));
     ESP_LOGI(TAG, "Enable temperature sensor");
