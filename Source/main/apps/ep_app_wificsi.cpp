@@ -451,24 +451,19 @@ void EPAppWifiCsi::enable_csi(uint32_t currentMillis) {
         .shift             = 0,
         .dump_ack_en       = false,
     };
-    // -----------------------------------------------------------------------
-    // WifiM::wifi_sta_ok is set true only on IP_EVENT_STA_GOT_IP.
-    // This works correctly in APSTA mode where esp_wifi_sta_get_ap_info()
-    // and esp_netif checks can falsely fail despite being connected.
-    // -----------------------------------------------------------------------
-    if (!WifiM::getWifiStaStatus()) {
-        ESP_LOGW(TAG, "enable_csi: wifi_sta_ok=false, retry in 2s (IP: %s)",
-                 WifiM::getStaIp().c_str());
-        csi_init_pending = true;
-        csi_retry_at_ms  = currentMillis + 2000;
-        SetDisplayDirty();
-        return;
-    }
-    ESP_LOGI(TAG, "enable_csi: STA ok, IP=%s", WifiM::getStaIp().c_str());
+    // Note: We no longer gate on getWifiStaStatus() here.
+    // The display already shows IP + STA:OK, so WiFi is up.
+    // If CSI fails, we show the exact error code instead of retrying silently.
+    ESP_LOGI(TAG, "enable_csi: proceeding, IP=%s", WifiM::getStaIp().c_str());
 
     esp_err_t err = esp_wifi_set_csi_config(&csi_config);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "esp_wifi_set_csi_config: %s", esp_err_to_name(err));
+        snprintf(csi_last_error, sizeof(csi_last_error), "cfg:%s", esp_err_to_name(err));
+        csi_init_pending = true;
+        csi_retry_at_ms  = currentMillis + 3000;
+        SetDisplayDirty();
+        return;
     }
 
     esp_wifi_set_csi_rx_cb(&EPAppWifiCsi::csi_cb, this);
@@ -476,6 +471,7 @@ void EPAppWifiCsi::enable_csi(uint32_t currentMillis) {
     err = esp_wifi_set_csi(true);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "esp_wifi_set_csi(true): %s", esp_err_to_name(err));
+        snprintf(csi_last_error, sizeof(csi_last_error), "en:%s", esp_err_to_name(err));
         csi_init_pending = true;
         csi_retry_at_ms  = currentMillis + 3000;
         SetDisplayDirty();
@@ -672,8 +668,9 @@ void EPAppWifiCsi::OnDisplayRequest(DisplayGeneric* display) {
         return;
     }
     if (csi_init_pending) {
-        char buf[80];
-        snprintf(buf, sizeof(buf), "Warte auf WiFi...\nIP: %s\nSTA: %s",
+        char buf[96];
+        snprintf(buf, sizeof(buf), "CSI init fehler:\n%s\nIP:%s STA:%s",
+                 csi_last_error[0] ? csi_last_error : "warte WiFi...",
                  WifiM::getStaIp().c_str(),
                  WifiM::getWifiStaStatus() ? "OK" : "FAIL");
         display->showMainText(buf);
