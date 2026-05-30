@@ -187,10 +187,11 @@ bool WifiM::config_wifi_apsta() {
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
 
     if (has_sta) {
-        // Now switch to STA mode so the AP doesn't start
-        ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-        sta_disconnected_since = 0; // reset disconnect timer
-        ESP_LOGI(TAG, "STA configured, starting in WIFI_MODE_STA first.");
+        // Stay in WIFI_MODE_APSTA — CSI requires this mode.
+        // The AP is configured but max_connection=0 until STA connect fails,
+        // so it won't interfere. Switching to WIFI_MODE_STA breaks CSI.
+        sta_disconnected_since = 0;
+        ESP_LOGI(TAG, "STA configured, starting in WIFI_MODE_APSTA (CSI requires APSTA).");
     } else {
         ESP_LOGI(TAG, "No STA configured, starting in WIFI_MODE_APSTA.");
     }
@@ -222,10 +223,17 @@ void WifiM::wifi_loop(uint32_t millis) {
             }
             sta_disconnected_since = 0; // reset disconnect timer
 
-            // If connected to STA, and AP is enabled but has no clients, turn it off to save power/clean up
+            // If connected to STA, and AP is enabled but has no clients,
+            // we CANNOT downgrade to WIFI_MODE_STA because CSI requires
+            // WIFI_MODE_APSTA — keep APSTA, just stop advertising the AP beacon
+            // by setting max_connection=0 instead of switching mode.
             if (ap_enabled && ap_client_num == 0) {
-                ESP_LOGI(TAG, "STA connected successfully. Disabling fallback AP.");
-                esp_wifi_set_mode(WIFI_MODE_STA);
+                ESP_LOGI(TAG, "STA connected. Hiding fallback AP (keeping APSTA for CSI).");
+                wifi_config_t ap_cfg = {};
+                esp_wifi_get_config(WIFI_IF_AP, &ap_cfg);
+                ap_cfg.ap.max_connection = 0;  // refuse new clients → effectively hidden
+                esp_wifi_set_config(WIFI_IF_AP, &ap_cfg);
+                // Stay in WIFI_MODE_APSTA — do NOT call esp_wifi_set_mode(WIFI_MODE_STA)
                 ap_enabled = false;
             }
         } else {
