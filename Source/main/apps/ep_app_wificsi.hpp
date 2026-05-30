@@ -99,8 +99,9 @@ class EPAppWifiCsi : public EPApp {
     static constexpr uint32_t PING_INTERVAL_MS = 100; // ping every 100 ms
     uint32_t           ping_interval_ms  = PING_INTERVAL_MS;
     TaskHandle_t       ping_task_handle  = nullptr;
-    int                ping_sock_fd      = -1;   // raw ICMP socket; -1 = not open
+    int                ping_sock_fd      = -1;
     bool               csi_init_failed   = false;
+    char               csi_last_error[48] = {};
     bool               csi_init_pending  = false;  // retry pending
     uint32_t           csi_retry_at_ms   = 0;      // when to retry
 
