@@ -59,7 +59,10 @@
 
 #include "sensordb.h"
 
+#if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3) || \
+    defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
 #include <driver/temperature_sensor.h>
+#endif
 #include "apps/appmanager.hpp"
 
 bool gpsDebug = false;  // set to false, and give it an ui to be able to turn it on / off
@@ -529,21 +532,21 @@ void app_main(void) {
     }
     esp_task_wdt_deinit();
 
+#if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3) || \
+    defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
     temperature_sensor_handle_t temp_sensor = NULL;
     temperature_sensor_config_t temp_sensor_config = {
         .range_min = -10,
         .range_max = 80,
-#if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3) || \
-    defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
         .clk_src = TEMPERATURE_SENSOR_CLK_SRC_DEFAULT,
         .flags = {
             .allow_pd = 0,
         },
-#endif
     };
     ESP_ERROR_CHECK(temperature_sensor_install(&temp_sensor_config, &temp_sensor));
     ESP_LOGI(TAG, "Enable temperature sensor");
     ESP_ERROR_CHECK(temperature_sensor_enable(temp_sensor));
+#endif
 
     LedFeedback::init(pinConfig.LedRgbPin());
     LedFeedback::rgb_set(255, 255, 255);
@@ -739,10 +742,15 @@ void app_main(void) {
             WifiM::set_airplane_mode(airplane_mode);
         }
 
-        // GET ALL SENSOR DATA
+            // GET ALL SENSOR DATA
         if (time_millis - last_millis[TimerEntry_SENSORGET] > timer_millis[TimerEntry_SENSORGET]) {
             // GPS IS AUTO
+#if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3) || \
+    defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
             ESP_ERROR_CHECK(temperature_sensor_get_celsius(temp_sensor, &temperatureEsp));                 // TEMPINT
+#else
+            temperatureEsp = -99.0f; // ESP32 has no internal temperature sensor
+#endif
             orientation.angle = get_heading_degrees();                                                     // ORIENTATION
             orientation.tilt = get_tilt();                                                                 // TILT
             get_environment_meas(&environment.temperature, &environment.pressure, &environment.humidity);  // env data
