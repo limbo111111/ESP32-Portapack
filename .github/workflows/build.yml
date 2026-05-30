@@ -19,6 +19,7 @@ jobs:
         . $IDF_PATH/export.sh
         cd Source
         rm -f sdkconfig
+        idf.py set-target esp32
         idf.py build
 
     - name: Upload Artifact
