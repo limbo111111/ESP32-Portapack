@@ -168,6 +168,8 @@ static IRAM_ATTR void s_i2c_handle_tx_fifo_wm(i2c_slave_dev_private_t* i2c_slave
 }
 
 static IRAM_ATTR void s_i2c_handle_clock_stretch(i2c_slave_dev_private_t* i2c_slave) {
+#if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3) || \
+    defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
     i2c_hal_context_t* hal = &i2c_slave->hal;
     i2c_slave_stretch_cause_t stretch_cause = 0xff;
 #ifdef CONFIG_IDF_TARGET_ESP32S2
@@ -177,43 +179,46 @@ static IRAM_ATTR void s_i2c_handle_clock_stretch(i2c_slave_dev_private_t* i2c_sl
     i2c_ll_slave_get_stretch_cause(hal->dev, &stretch_cause);
 #endif
     i2c_slave_device_t* s = &i2c_slave->user_dev;
-    // esp_rom_printf("stretch cause is %d\n", stretch_cause);
-    // esp_rom_printf("buffer length is %d\n", hal->dev->status_reg.tx_fifo_cnt);
     switch (stretch_cause) {
         case I2C_SLAVE_STRETCH_CAUSE_ADDRESS_MATCH:
-            // start of a send. Receive any lingering data in the rx buffer, and call the callback.
             s_i2c_handle_rx_fifo_wm(i2c_slave);
             if (s->state == I2C_STATE_RECV) {
-                // transaction in progress, but the master has re-addressed us, let the callback know.
                 i2c_slave->callback(&i2c_slave->user_dev, I2C_CALLBACK_REPEAT_START);
             }
-            // reset the buffer and fifos for the next transaction
             s->state = I2C_STATE_SEND;
             s_i2c_reset_buffer(i2c_slave);
-            // tell the callback that we need some data.
             i2c_slave->callback(s, I2C_CALLBACK_SEND_DATA);
-            // esp_rom_printf("here, receive mode is %d\n", hal->dev->status_reg.slave_rw);
             break;
         case I2C_SLAVE_STRETCH_CAUSE_RX_FULL:
         case I2C_SLAVE_STRETCH_CAUSE_SENDING_ACK:
         default:
-            // clear the condition, we can't do anything at this point
             i2c_ll_slave_clear_stretch(hal->dev);
             break;
         case I2C_SLAVE_STRETCH_CAUSE_TX_EMPTY:
-            // tell the callback we need more data
             i2c_slave->callback(s, I2C_CALLBACK_SEND_DATA);
             break;
     }
+#else
+    // ESP32 has no slave SCL stretch hardware — this ISR path is never reached.
+    (void)i2c_slave;
+#endif
 }
 
 static IRAM_ATTR void s_slave_fifo_isr_handler(uint32_t int_mask, i2c_slave_dev_private_t* i2c_slave) {
+#if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3) || \
+    defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
     if (int_mask & I2C_INTR_STRETCH) {
         s_i2c_handle_clock_stretch(i2c_slave);
     }
     if (int_mask & I2C_INTR_SLV_RXFIFO_WM) {
         s_i2c_handle_rx_fifo_wm(i2c_slave);
     }
+#else
+    // ESP32: no stretch interrupt; RX data arrives via RXFIFO_OVF or TRANS_COMPLETE
+    if (int_mask & I2C_RXFIFO_OVF_INT_ENA_M) {
+        s_i2c_handle_rx_fifo_wm(i2c_slave);
+    }
+#endif
     if (int_mask & I2C_INTR_SLV_COMPLETE) {
         s_i2c_handle_complete(i2c_slave);
     }
@@ -272,10 +277,22 @@ esp_err_t i2c_slave_new(i2c_slave_config_t* config, i2c_slave_device_t** result)
     ESP_RETURN_ON_ERROR(s_hp_i2c_pins_config(dev), TAG, "Unable to set up pins");
     // set up the interrupt
     uint32_t isr_flags = (ESP_INTR_FLAG_SHARED | ESP_INTR_FLAG_LOWMED);
+    // I2C_SLAVE_STRETCH_INT_ENA_M, I2C_RXFIFO_WM_INT_ENA_M and
+    // I2C_TXFIFO_WM_INT_ENA_M are only defined on ESP32-S2/S3/C3+.
+    // On the original ESP32 there is no hardware clock-stretch in slave mode,
+    // so we fall back to the interrupts that do exist there.
+#if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3) || \
+    defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
     uint32_t isr_mask = (I2C_TRANS_COMPLETE_INT_ENA_M |
                          I2C_SLAVE_STRETCH_INT_ENA_M |
                          I2C_RXFIFO_WM_INT_ENA_M |
                          I2C_TXFIFO_WM_INT_ENA_M);
+#else
+    // ESP32: no stretch interrupt available
+    uint32_t isr_mask = (I2C_TRANS_COMPLETE_INT_ENA_M |
+                         I2C_RXFIFO_OVF_INT_ENA_M |
+                         I2C_SLAVE_TRAN_COMP_INT_ENA_M);
+#endif
     ESP_RETURN_ON_ERROR(esp_intr_alloc_intrstatus(i2c_periph_signal[dev->portNum].irq, isr_flags, (uint32_t)i2c_ll_get_interrupt_status_reg(hal->dev), isr_mask, s_slave_isr_handle_default, dev, &dev->intr), TAG, "Unable to create interrupt");
     i2c_ll_clear_intr_mask(hal->dev, isr_mask);
     i2c_hal_slave_init(hal);
@@ -287,11 +304,18 @@ esp_err_t i2c_slave_new(i2c_slave_config_t* config, i2c_slave_device_t** result)
     i2c_ll_set_tout(hal->dev, 32000);
 
     // enable interrupts for stretch and receiving, those always stay enabled.
+#if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3) || \
+    defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
     i2c_ll_slave_enable_scl_stretch(hal->dev, true);
     hal->dev->scl_stretch_conf.stretch_protect_num = 500;
     i2c_ll_slave_enable_auto_start(hal->dev, true);
     i2c_ll_slave_enable_rx_it(hal->dev);
     i2c_ll_enable_intr_mask(hal->dev, I2C_SLAVE_STRETCH_INT_ENA_M);
+#else
+    // ESP32 has no hardware SCL stretch in slave mode — just enable RX and
+    // auto-start so the slave can still receive data from the master.
+    i2c_ll_slave_enable_rx_it(hal->dev);
+#endif
     i2c_ll_update(hal->dev);
     *result = &dev->user_dev;
     return ESP_OK;
@@ -323,11 +347,19 @@ IRAM_ATTR esp_err_t i2c_slave_del(i2c_slave_device_t* dev) {
     ESP_RETURN_ON_FALSE(i2c_slave, ESP_ERR_INVALID_ARG, TAG, "invalid slave handle");
     ESP_RETURN_ON_FALSE(i2c_slave->allocated, ESP_ERR_INVALID_ARG, TAG, "Trying to deallocate unallocated slave");
     if (i2c_slave->allocated) {
+#if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3) || \
+    defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
         i2c_ll_disable_intr_mask(i2c_slave->hal.dev,
                                  I2C_TRANS_COMPLETE_INT_ENA_M |
                                      I2C_SLAVE_STRETCH_INT_ENA_M |
                                      I2C_RXFIFO_WM_INT_ENA_M |
                                      I2C_TXFIFO_WM_INT_ENA_M);
+#else
+        i2c_ll_disable_intr_mask(i2c_slave->hal.dev,
+                                 I2C_TRANS_COMPLETE_INT_ENA_M |
+                                     I2C_RXFIFO_OVF_INT_ENA_M |
+                                     I2C_SLAVE_TRAN_COMP_INT_ENA_M);
+#endif
         ESP_RETURN_ON_ERROR(esp_intr_free(i2c_slave->intr), TAG, "delete interrupt service failed");
         PERIPH_RCC_ATOMIC() {
             i2c_ll_enable_bus_clock(i2c_slave->portNum, false);
