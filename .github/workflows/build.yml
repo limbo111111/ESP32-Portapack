@@ -4,6 +4,7 @@ on:
   push:
     branches: [ "main", "master" ]
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -17,6 +18,7 @@ jobs:
       run: |
         . $IDF_PATH/export.sh
         cd Source
+        rm -f sdkconfig
         idf.py build
 
     - name: Upload Artifact
