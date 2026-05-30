@@ -22,20 +22,27 @@ bool WifiM::ever_connected = false;
 bool WifiM::ap_configured = false;
 
 bool WifiM::getWifiStaStatus() {
-    // Primary check: the event-driven flag (set on IP_EVENT_STA_GOT_IP).
     if (wifi_sta_ok) return true;
 
-    // Fallback: the flag may have been missed (e.g. reconnect with same IP
-    // where the driver suppresses a second IP_EVENT_STA_GOT_IP, or a race
-    // between STA_DISCONNECTED clearing it and the next GOT_IP).
-    // Ask the netif directly — if it has a non-zero IP we are connected.
-    esp_netif_t* sta_netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
-    if (sta_netif) {
+    // Fallback: currIp is set in IP_EVENT_STA_GOT_IP and cleared in
+    // IP_EVENT_STA_LOST_IP / STA_DISCONNECTED. If it's non-zero we have
+    // an IP regardless of what the flag says (event race on reconnect).
+    if (currIp[0] != 0 || currIp[1] != 0 || currIp[2] != 0 || currIp[3] != 0) {
+        wifi_sta_ok = true;
+        return true;
+    }
+
+    // Last resort: ask the netif we already hold a reference to.
+    if (esp_netif_sta) {
         esp_netif_ip_info_t ipinfo;
-        if (esp_netif_get_ip_info(sta_netif, &ipinfo) == ESP_OK &&
+        if (esp_netif_get_ip_info(esp_netif_sta, &ipinfo) == ESP_OK &&
             ipinfo.ip.addr != 0) {
-            // Sync the flag so future calls are fast
             wifi_sta_ok = true;
+            // Sync currIp too so the display shows the right address
+            currIp[0] = (ipinfo.ip.addr >>  0) & 0xFF;
+            currIp[1] = (ipinfo.ip.addr >>  8) & 0xFF;
+            currIp[2] = (ipinfo.ip.addr >> 16) & 0xFF;
+            currIp[3] = (ipinfo.ip.addr >> 24) & 0xFF;
             return true;
         }
     }
