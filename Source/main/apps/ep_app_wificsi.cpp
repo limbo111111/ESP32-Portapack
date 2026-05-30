@@ -441,6 +441,19 @@ void EPAppWifiCsi::enable_csi(uint32_t currentMillis) {
     //   3. Spawn a ping task → the AP's replies are guaranteed CSI frames
     //      from a fixed, known transmitter.
 
+    // wifi_csi_config_t changed in ESP-IDF 5.x when CONFIG_SOC_WIFI_HE_SUPPORT
+    // is set: it becomes wifi_csi_acquire_config_t with entirely different fields.
+    // We handle both layouts here.
+#if CONFIG_SOC_WIFI_HE_SUPPORT
+    // New layout (ESP32-C6, S3 with HE, etc.)
+    wifi_csi_config_t csi_config = {};
+    csi_config.enable             = 1;
+    csi_config.acquire_csi_legacy = 1;  // LLTF equivalent
+    csi_config.acquire_csi_ht20   = 1;  // HTLTF equivalent
+    csi_config.acquire_csi_ht40   = 1;
+    csi_config.dump_ack_en        = 0;
+#else
+    // Classic layout (ESP32, ESP32-S2, ESP32-S3 without HE)
     wifi_csi_config_t csi_config = {
         .lltf_en           = true,
         .htltf_en          = true,
@@ -451,6 +464,7 @@ void EPAppWifiCsi::enable_csi(uint32_t currentMillis) {
         .shift             = 0,
         .dump_ack_en       = false,
     };
+#endif
     // Note: We no longer gate on getWifiStaStatus() here.
     // The display already shows IP + STA:OK, so WiFi is up.
     // If CSI fails, we show the exact error code instead of retrying silently.
