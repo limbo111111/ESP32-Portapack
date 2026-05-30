@@ -672,7 +672,11 @@ void EPAppWifiCsi::OnDisplayRequest(DisplayGeneric* display) {
         return;
     }
     if (csi_init_pending) {
-        display->showMainText("Warte auf WiFi...\nRetry laeuft...");
+        char buf[80];
+        snprintf(buf, sizeof(buf), "Warte auf WiFi...\nIP: %s\nSTA: %s",
+                 WifiM::getStaIp().c_str(),
+                 WifiM::getWifiStaStatus() ? "OK" : "FAIL");
+        display->showMainText(buf);
         return;
     }
     if (is_calibrating) {
